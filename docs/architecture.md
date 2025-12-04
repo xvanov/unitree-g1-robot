@@ -109,6 +109,23 @@ IoT/Embedded Robotics with AI/ML - Fixed hardware platform (Unitree G1 EDU 23-DO
 - **LocoClient** = "how to walk there" (Unitree's proven locomotion controller)
 - **Bridge node** connects them: subscribes to `/cmd_vel`, calls `SetVelocity()`
 
+### DDS Topic Access: ROS2 vs SDK
+
+**Important:** The robot runs Unitree firmware, NOT ROS2. It publishes DDS topics directly:
+- `rt/lowstate` - IMU, joint states, battery (SDK access via `ChannelSubscriber`)
+- `rt/utlidar/cloud` - LiDAR point cloud (DDS, ROS2-compatible message type)
+
+**Why ROS2 can see robot topics:** Both ROS2 Humble and Unitree SDK use CycloneDDS. When on the same network/DDS domain, ROS2 nodes can discover and subscribe to the robot's DDS topics directly.
+
+**Sensor Access Strategy (Decision 2025-12-04):**
+| Sensor | Access Method | Rationale |
+|--------|---------------|-----------|
+| IMU/Joints | SDK → `hardware_bridge.py` → ROS2 | Custom message conversion needed |
+| LiDAR | Direct DDS (Option A) | Standard PointCloud2, try zero-code first |
+| LiDAR | SDK bridge (Option B, fallback) | If Option A has QoS/discovery issues |
+
+See Story 1.3 Dev Notes for implementation details.
+
 ### Architectural Decisions from Foundation
 
 | Decision | Choice | Rationale |
