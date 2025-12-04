@@ -88,7 +88,7 @@ The project artifacts are well-aligned and complete. All 43 MVP functional requi
 
 **Epics & Stories Document:**
 - **Purpose:** Breakdown of requirements into implementable user stories
-- **Contents:** 1 Epic with 11 Stories, each with acceptance criteria, technical notes, runnable verification, prerequisites
+- **Contents:** 1 Epic with 12 Stories, each with acceptance criteria, technical notes, runnable verification, prerequisites
 - **Approach:** Integration work - connecting proven libraries (Nav2, slam_toolbox, VLM APIs)
 
 **Missing Documents (Evaluated):**
@@ -179,14 +179,15 @@ The project artifacts are well-aligned and complete. All 43 MVP functional requi
 
 **Epic Structure:**
 - **1 Epic:** Construction Site Inspector MVP
-- **11 Stories:** Sequential, each with runnable deliverable
+- **12 Stories:** Sequential, each with runnable deliverable
 
 **Story Breakdown:**
 | # | Story | Key Deliverable | Prerequisites |
 |---|-------|-----------------|---------------|
 | 1 | Project Setup & ROS2 Workspace | `colcon build` succeeds | None |
 | 2 | Simulation Environment | MuJoCo + RViz + teleop | Story 1 |
-| 3 | Navigation Stack Integration | Autonomous nav to goal | Story 2 |
+| 2.5 | Hardware Connectivity - Hello World | Real robot waves, sensors stream | Story 2 |
+| 3 | Navigation Stack Integration | Autonomous nav to goal | Story 2.5 |
 | 4 | Localization & Safety Systems | E-stop, battery monitor | Story 3 |
 | 5 | Plan Management & Calibration | Upload plan, calibrate | Story 4 |
 | 6 | Inspection State Machine & CLI | Full CLI workflow | Story 5 |
@@ -304,7 +305,7 @@ No critical gaps identified. All core PRD requirements have architectural suppor
 **Sequencing Issues Found: 0**
 
 Story dependencies are linear and properly ordered:
-- Foundation (Stories 1-2) → Navigation (3-4) → Inspection Logic (5-7) → AI/Reporting (8-9) → Testing/Deployment (10-11)
+- Foundation (Stories 1-2) → Hardware Validation (2.5) → Navigation (3-4) → Inspection Logic (5-7) → AI/Reporting (8-9) → Testing/Deployment (10-11)
 - No circular dependencies
 - Infrastructure stories precede feature stories
 

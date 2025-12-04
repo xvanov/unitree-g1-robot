@@ -1,6 +1,6 @@
 # Story 1.1: Project Setup & ROS2 Workspace
 
-**Status:** Ready for Review
+**Status:** Done
 
 ## Story
 

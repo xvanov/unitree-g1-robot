@@ -28,12 +28,14 @@ This document provides the epic and story breakdown for unitree-g1-robot. This i
 
 **Goal:** Autonomous robot that navigates a construction site, captures images, detects defects via VLM, and generates PDF reports.
 
-**Total Stories:** 11
+**Total Stories:** 13
 
 | # | Story | Runnable Deliverable |
 |---|-------|---------------------|
 | 1 | Project Setup & ROS2 Workspace | `colcon build` succeeds, interfaces importable |
 | 2 | Simulation Environment | Launch sim, see robot in RViz, teleop works |
+| 2.5 | Hardware Connectivity - Hello World | Real robot waves, sensor data received |
+| 2.6 | Sensor Hello World - Multi-Sensor Validation | Camera, LiDAR, audio captured and viewable in RViz |
 | 3 | Navigation Stack Integration | Send nav goal, robot navigates autonomously |
 | 4 | Localization & Safety Systems | Trigger E-stop, see safety behaviors |
 | 5 | Plan Management & Calibration | Upload plan via CLI, calibrate robot |
@@ -149,6 +151,127 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/g1/
 ```
 
 **Definition of Done:** Simulation launches, robot visible in RViz, teleop moves robot, sensor topics publishing.
+
+---
+
+## Story 2.5: Hardware Connectivity - Hello World
+
+As a developer,
+I want to connect to the real G1 robot and command a simple motion,
+So that I validate hardware integration before building navigation on top of it.
+
+**Scope:**
+- Connect to real G1 via Unitree SDK2 Python
+- Command a simple gesture (arm wave, head nod, or standing pose shift)
+- Read back live sensor data (IMU, battery level, joint states)
+- Verify CycloneDDS communication on robot network (192.168.123.x)
+- Optional: teleop the real robot briefly with keyboard
+
+**Acceptance Criteria:**
+- Script connects to robot without errors
+- Robot executes commanded motion
+- Sensor data streams back to console
+- Developer can teleop real robot same as sim
+
+**Technical Notes:**
+- Use unitree_sdk2_python LocoClient for locomotion commands
+- Robot IP: 192.168.123.164 (configurable)
+- Ensure CycloneDDS domain ID matches robot
+- Keep motion commands conservative for safety
+
+**Prerequisites:** Story 2
+
+**🧪 Runnable Verification:**
+```bash
+# 1. Connect to robot network
+ping 192.168.123.164
+
+# 2. Run hello world script
+python3 scripts/hello_world_g1.py
+# Output: "Connected to G1. Battery: 85%. Commanding wave..."
+# Robot physically waves arm or performs simple gesture
+
+# 3. Read live sensor data
+python3 scripts/read_g1_sensors.py
+# Output: IMU orientation, joint states, battery level
+
+# 4. Teleop real robot (optional but recommended)
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/g1/cmd_vel
+# Robot responds to keyboard commands - walk forward, turn, etc.
+
+# 5. Verify ROS2 topics from real robot
+ros2 topic list | grep g1
+ros2 topic echo /g1/imu/data --once
+```
+
+**Definition of Done:** Real G1 robot responds to commands, sensor data received on dev machine. Hardware integration validated before building navigation stack.
+
+---
+
+## Story 2.6: Sensor Hello World - Multi-Sensor Validation
+
+As a developer,
+I want to capture data from all G1 sensors (camera, LiDAR, microphone) via a single CLI tool,
+So that I validate sensor hardware integration before building perception pipelines on top of it.
+
+**Scope:**
+- Create unified `sensor_hello_world.py` script with CLI flags
+- Capture RGB + depth images from RealSense D435
+- Capture point cloud from Livox MID-360 LiDAR
+- Record audio from 4-mic array
+- Optional RViz visualization for point cloud and camera feeds
+- Save all captured data with timestamps
+- Create standalone `estop_g1.py` emergency stop script
+
+**Acceptance Criteria:**
+- `--camera` captures RGB + depth image, saves to file, displays dimensions
+- `--lidar` captures point cloud, saves to PCD file, displays point count
+- `--audio` records from microphone array, saves to WAV file, displays duration
+- `--rviz` launches RViz to visualize point cloud and camera feeds
+- `--all` runs all sensor tests
+- All sensor data saved with timestamps for verification
+- E-stop script immediately halts robot motion (<500ms) and puts robot in safe damp mode
+
+**Technical Notes:**
+- Uses pyrealsense2 or realsense2_camera ROS2 driver
+- Uses livox_ros2_driver for LiDAR
+- Uses sounddevice/soundfile for audio recording
+- Same CLI pattern as existing hello_world_g1.py (network interface argument)
+- Graceful handling of disconnected sensors
+
+**Prerequisites:** Story 2.5
+
+**🧪 Runnable Verification:**
+```bash
+# 1. Connect to robot network
+ping 192.168.123.164
+
+# 2. Test camera capture
+python3 scripts/sensor_hello_world.py eth0 --camera
+# Output: RGB 640x480, Depth 640x480, files saved
+
+# 3. Test LiDAR capture
+python3 scripts/sensor_hello_world.py eth0 --lidar
+# Output: 45,230 points captured, PCD file saved
+
+# 4. Test audio capture
+python3 scripts/sensor_hello_world.py eth0 --audio --duration 5
+# Output: 5.0s recorded, WAV file saved
+
+# 5. Test all sensors with RViz visualization
+python3 scripts/sensor_hello_world.py eth0 --all --rviz
+# Opens RViz showing point cloud and camera feeds
+
+# 6. Verify saved files
+ls sensor_captures/*/
+# Should show: camera_rgb.png, camera_depth.png, lidar_pointcloud.pcd, audio_recording.wav
+
+# 7. Test E-stop (ALWAYS test this first before other hardware tests!)
+python3 scripts/estop_g1.py eth0
+# Robot immediately stops and goes limp (damp mode)
+```
+
+**Definition of Done:** All sensors captured via CLI flags, data saved to files, point cloud viewable in RViz. E-stop tested and working. Sensor hardware validated before building perception pipelines.
 
 ---
 
@@ -821,7 +944,7 @@ docker-compose -f docker/docker-compose.robot.yaml up
 | Metric | Value |
 |--------|-------|
 | **Total Epics** | 1 |
-| **Total Stories** | 11 |
+| **Total Stories** | 13 |
 | **FRs Covered** | 43/43 MVP (100%) |
 | **Deferred** | FR13 (stairs), FR45-47 (blue tape) |
 
@@ -831,6 +954,8 @@ docker-compose -f docker/docker-compose.robot.yaml up
 |-------|-------------|---------------------|
 | 1 | Workspace | `colcon build` |
 | 2 | Simulation | `ros2 launch sim_launch.py` + teleop |
+| 2.5 | Hardware Hello World | Real robot waves, sensors stream |
+| 2.6 | Sensor Hello World | Camera, LiDAR, audio captured, RViz visualization |
 | 3 | Navigation | Send nav goals, watch robot navigate |
 | 4 | Safety | Trigger E-stop, low battery |
 | 5 | Plans | CLI upload and calibrate |

@@ -1,3 +1,325 @@
+# =============================================================================
+# Unitree G1 Robot Project - Comprehensive .gitignore
+# =============================================================================
 
-# External dependencies (cloned by setup.sh)
+# -----------------------------------------------------------------------------
+# External Dependencies (cloned by setup.sh)
+# -----------------------------------------------------------------------------
 external/
+
+# -----------------------------------------------------------------------------
+# ROS 2 / Colcon Build Artifacts
+# -----------------------------------------------------------------------------
+build/
+install/
+log/
+
+# COLCON_IGNORE files (generated)
+COLCON_IGNORE
+
+# ROS bag files
+*.bag
+*.bag.active
+*.db3
+
+# RViz config files (user-specific, can be generated)
+# Note: Keep project-specific rviz configs in version control if needed
+# *.rviz
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytestdebug.log
+
+# Translations
+*.mo
+*.pot
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.env.*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# -----------------------------------------------------------------------------
+# C/C++ Build Artifacts
+# -----------------------------------------------------------------------------
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (remove if needed in external/)
+# *.so  # Commented - already handled, some may be intentional
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# -----------------------------------------------------------------------------
+# IDE / Editor
+# -----------------------------------------------------------------------------
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains (PyCharm, CLion, etc.)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.project
+.cproject
+.settings/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Kate
+.kate-swp
+
+# -----------------------------------------------------------------------------
+# OS Generated
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# -----------------------------------------------------------------------------
+# Claude Code / AI Assistant
+# -----------------------------------------------------------------------------
+.claude/settings.local.json
+
+# -----------------------------------------------------------------------------
+# Simulation / MuJoCo
+# -----------------------------------------------------------------------------
+# MuJoCo generated files
+*.mjcf.bak
+
+# Simulation recordings
+*.mp4
+*.avi
+*.mov
+
+# -----------------------------------------------------------------------------
+# Robot-specific
+# -----------------------------------------------------------------------------
+# Unitree SDK logs
+*.unitree.log
+
+# Network configuration (may contain IPs)
+# network_config.yaml
+
+# Calibration files (robot-specific)
+# calibration/
+
+# -----------------------------------------------------------------------------
+# Logs & Temporary Files
+# -----------------------------------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Core dumps
+core
+core.*
+
+# -----------------------------------------------------------------------------
+# Data & Models (large files)
+# -----------------------------------------------------------------------------
+# Neural network weights (use Git LFS if needed)
+*.pt
+*.pth
+*.onnx
+*.weights
+*.h5
+*.pb
+
+# Dataset files
+*.csv
+*.parquet
+*.pkl
+*.pickle
+
+# -----------------------------------------------------------------------------
+# Documentation Build
+# -----------------------------------------------------------------------------
+docs/_build/
+docs/api/
+
+# Sphinx
+_build/
+
+# -----------------------------------------------------------------------------
+# Security & Secrets
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+*.crt
+*.p12
+secrets.yaml
+secrets.json
+credentials.json
+.secrets/
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub

@@ -42,9 +42,11 @@ story_location: "docs/sprint-artifacts"
 
 development_status:
   # Epic 1: Construction Site Inspector MVP
-  epic-1: backlog
-  1-1-project-setup-ros2-workspace: backlog
-  1-2-simulation-environment: backlog
+  epic-1: in-progress
+  1-1-project-setup-ros2-workspace: done
+  1-2-simulation-environment: done
+  1-2.5-hardware-connectivity-hello-world: done
+  1-2.6-sensor-hello-world: in-progress
   1-3-navigation-stack-integration: backlog
   1-4-localization-safety-systems: backlog
   1-5-plan-management-calibration: backlog
