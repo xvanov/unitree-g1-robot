@@ -221,7 +221,9 @@ class TestMetadata:
             args = argparse.Namespace(
                 duration=5.0,
                 lidar_duration=2.0,
-                rviz=False
+                rviz=False,
+                network_interface='eth0',
+                audio_device=None
             )
             sensors_tested = ['camera', 'lidar']
 
@@ -235,10 +237,12 @@ class TestMetadata:
                 metadata = json.load(f)
 
             assert 'timestamp' in metadata
+            assert metadata['network_interface'] == 'eth0'
             assert metadata['sensors_tested'] == ['camera', 'lidar']
             assert metadata['parameters']['audio_duration'] == 5.0
             assert metadata['parameters']['lidar_duration'] == 2.0
             assert metadata['parameters']['rviz_enabled'] is False
+            assert metadata['parameters']['audio_device'] is None
 
 
 class TestRVizLauncher:
@@ -260,6 +264,11 @@ class TestRVizLauncher:
         """Test stop() doesn't error when not running."""
         launcher = RVizLauncher()
         launcher.stop()  # Should not raise
+
+    def test_rviz_launcher_is_running_when_not_started(self):
+        """Test is_running() returns False when not started."""
+        launcher = RVizLauncher()
+        assert launcher.is_running() is False
 
 
 class TestPrintBanner:
@@ -460,26 +469,30 @@ class TestRVizConfigValidity:
         import yaml
 
         rviz_path = Path(__file__).parent.parent / "src/g1_bringup/config/rviz/sensor_test.rviz"
-        if rviz_path.exists():
-            with open(rviz_path, 'r') as f:
-                config = yaml.safe_load(f)
+        if not rviz_path.exists():
+            pytest.skip(f"RViz config not found at {rviz_path}")
 
-            assert 'Visualization Manager' in config
-            assert config['Visualization Manager']['Global Options']['Fixed Frame'] == 'utlidar_lidar'
+        with open(rviz_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        assert 'Visualization Manager' in config
+        assert config['Visualization Manager']['Global Options']['Fixed Frame'] == 'utlidar_lidar'
 
     def test_rviz_config_has_pointcloud_display(self):
         """Test that RViz config includes PointCloud2 display for utlidar/cloud."""
         import yaml
 
         rviz_path = Path(__file__).parent.parent / "src/g1_bringup/config/rviz/sensor_test.rviz"
-        if rviz_path.exists():
-            with open(rviz_path, 'r') as f:
-                config = yaml.safe_load(f)
+        if not rviz_path.exists():
+            pytest.skip(f"RViz config not found at {rviz_path}")
 
-            displays = config['Visualization Manager']['Displays']
-            pointcloud_displays = [d for d in displays if d.get('Class') == 'rviz_default_plugins/PointCloud2']
-            assert len(pointcloud_displays) >= 1
-            assert pointcloud_displays[0]['Topic']['Value'] == 'utlidar/cloud'
+        with open(rviz_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        displays = config['Visualization Manager']['Displays']
+        pointcloud_displays = [d for d in displays if d.get('Class') == 'rviz_default_plugins/PointCloud2']
+        assert len(pointcloud_displays) >= 1
+        assert pointcloud_displays[0]['Topic']['Value'] == 'utlidar/cloud'
 
 
 if __name__ == "__main__":

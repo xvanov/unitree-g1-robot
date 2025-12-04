@@ -114,8 +114,9 @@ class CameraTester(SensorTester):
             print("[PERCEPTION] Install with: pip install pyrealsense2>=2.54.0")
             return False
 
-        print(f"[PERCEPTION] Initializing RealSense D435 camera...")
+        print("[PERCEPTION] Initializing RealSense D435 camera...")
 
+        pipeline = None
         try:
             # Create pipeline and config
             pipeline = rs.pipeline()
@@ -153,7 +154,6 @@ class CameraTester(SensorTester):
 
             if not color_frame or not depth_frame:
                 print("[PERCEPTION] ERROR: Could not capture frames")
-                pipeline.stop()
                 return False
 
             # Convert to numpy arrays
@@ -201,13 +201,20 @@ class CameraTester(SensorTester):
             np.save(str(depth_npy_path), depth_image)
             print(f"[PERCEPTION] Saved: {depth_npy_path} (16-bit depth data)")
 
-            pipeline.stop()
             print("[PERCEPTION] Camera test complete!")
             return True
 
         except Exception as e:
             print(f"[PERCEPTION] ERROR: Camera test failed: {e}")
             return False
+
+        finally:
+            # Guaranteed cleanup of camera pipeline
+            if pipeline is not None:
+                try:
+                    pipeline.stop()
+                except Exception:
+                    pass
 
 
 class LiDARTester(SensorTester):
@@ -276,10 +283,14 @@ class LiDARTester(SensorTester):
             node = LiDARSubscriber(self)
 
             # Wait for data with timeout
+            # Safety: max iterations prevents infinite loop if spin_once misbehaves
             start_wait = time.time()
+            max_wait_iterations = int(LIDAR_TIMEOUT / 0.1) + 10  # Extra margin
+            wait_iterations = 0
             while not self._received_msg:
                 rclpy.spin_once(node, timeout_sec=0.1)
-                if time.time() - start_wait > LIDAR_TIMEOUT:
+                wait_iterations += 1
+                if time.time() - start_wait > LIDAR_TIMEOUT or wait_iterations > max_wait_iterations:
                     print(f"[PERCEPTION] ERROR: No LiDAR data received in {LIDAR_TIMEOUT}s")
                     print("[PERCEPTION] Check that:")
                     print("  1. Robot is powered on and connected")
@@ -288,8 +299,15 @@ class LiDARTester(SensorTester):
                     return False
 
             # Accumulate for specified duration
+            # Safety: max iterations to prevent runaway accumulation
+            max_accum_iterations = int((self.duration + 5.0) / 0.1)  # duration + 5s margin
+            accum_iterations = 0
             while not node.done:
                 rclpy.spin_once(node, timeout_sec=0.1)
+                accum_iterations += 1
+                if accum_iterations > max_accum_iterations:
+                    print("[PERCEPTION] WARNING: Accumulation timeout reached, proceeding with collected data")
+                    break
 
             # Process accumulated point clouds
             if not node.point_clouds:
@@ -462,17 +480,13 @@ class AudioTester(SensorTester):
                     print(f"[PERCEPTION] ERROR: Device index {self.device_index} out of range")
                     return False
             else:
-                # Auto-detect: prefer 4+ channel device (mic array)
+                # Auto-detect: prefer device with most channels (mic arrays have 4+)
+                # First pass: find device with highest channel count
                 for idx, dev in enumerate(devices):
                     if dev['max_input_channels'] >= 1:
                         if input_device is None or dev['max_input_channels'] > input_device['max_input_channels']:
                             input_device = dev
                             input_device_idx = idx
-                        # Prefer device with 4+ channels (mic array)
-                        if dev['max_input_channels'] >= 4:
-                            input_device = dev
-                            input_device_idx = idx
-                            break
 
             if input_device is None:
                 print("[PERCEPTION] ERROR: No audio input device found")
@@ -570,6 +584,10 @@ class RVizLauncher:
             except KeyboardInterrupt:
                 pass
 
+    def is_running(self) -> bool:
+        """Check if RViz process is currently running."""
+        return self._process is not None and self._process.poll() is None
+
     def stop(self) -> None:
         """Stop RViz process."""
         if self._process:
@@ -586,11 +604,13 @@ def create_metadata(output_dir: Path, sensors_tested: List[str], args: argparse.
     """Create metadata JSON file for the capture session."""
     metadata = {
         "timestamp": datetime.now().isoformat(),
+        "network_interface": getattr(args, 'network_interface', None),
         "sensors_tested": sensors_tested,
         "parameters": {
             "audio_duration": args.duration,
             "lidar_duration": args.lidar_duration,
             "rviz_enabled": args.rviz,
+            "audio_device": getattr(args, 'audio_device', None),
         },
         "output_directory": str(output_dir),
     }
@@ -803,7 +823,7 @@ def main() -> int:
     print(f"[PERCEPTION] Output saved to: {output_dir}")
 
     # If RViz is running, wait for user to close it
-    if rviz_launcher and rviz_launcher._process:
+    if rviz_launcher and rviz_launcher.is_running():
         print()
         print("[PERCEPTION] RViz is running. Press Ctrl+C to stop...")
         try:
