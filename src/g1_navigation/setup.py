@@ -16,7 +16,6 @@ setup(
     maintainer_email='g1-inspector@unitree-project.dev',
     description='G1 Inspector navigation and Nav2 integration',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
         ],
