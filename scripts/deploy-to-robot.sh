@@ -7,6 +7,7 @@
 #   ./scripts/deploy-to-robot.sh              # Deploy only
 #   ./scripts/deploy-to-robot.sh --run-sensors    # Deploy and run sensor test
 #   ./scripts/deploy-to-robot.sh --run-hello      # Deploy and run wave hello
+#   ./scripts/deploy-to-robot.sh --run-camera     # Deploy and run camera capture
 #   ./scripts/deploy-to-robot.sh --clean          # Remove deployed files from robot
 #
 # Requirements:
@@ -37,6 +38,7 @@ LOCAL_SDK_DIR="${PROJECT_ROOT}/external/unitree_sdk2_python/unitree_sdk2py"
 DEPLOY_SCRIPTS=(
     "scripts/read_g1_sensors.py"
     "scripts/hello_world_g1.py"
+    "scripts/sensor_hello_world.py"
 )
 
 # ============================================================================
@@ -172,11 +174,13 @@ show_usage_on_robot() {
     echo "  cd $REMOTE_DIR"
     echo "  ./run_test.sh read_g1_sensors.py    # Read IMU/joint data"
     echo "  ./run_test.sh hello_world_g1.py     # Wave hand test"
+    echo "  python3 sensor_hello_world.py eth0 --camera  # Camera capture"
     echo ""
     echo "Or run directly from this machine:"
     echo ""
     echo "  ./scripts/deploy-to-robot.sh --run-sensors"
     echo "  ./scripts/deploy-to-robot.sh --run-hello"
+    echo "  ./scripts/deploy-to-robot.sh --run-camera"
     echo ""
     echo "To clean up when done:"
     echo ""
@@ -211,6 +215,21 @@ run_hello() {
     ssh_cmd "cd $REMOTE_DIR && ./run_test.sh hello_world_g1.py"
 }
 
+run_camera() {
+    log_info "Running camera capture test on robot..."
+    echo ""
+    echo "============================================================"
+    echo "  CAMERA TEST - RealSense D435 (no ROS2 required)"
+    echo "============================================================"
+    echo ""
+    # Camera uses pyrealsense2 directly, no network interface needed for DDS
+    # But sensor_hello_world.py requires interface arg for consistency
+    ssh_cmd "cd $REMOTE_DIR && python3 sensor_hello_world.py $ROBOT_INTERFACE --camera --output-dir ./sensor_captures"
+    echo ""
+    log_info "Listing captured files..."
+    ssh_cmd "ls -la $REMOTE_DIR/sensor_captures/ 2>/dev/null || echo 'No captures found'"
+}
+
 clean_deployment() {
     log_info "Removing deployed files from robot..."
     ssh_cmd "rm -rf $REMOTE_DIR"
@@ -236,6 +255,9 @@ main() {
         --run-hello)
             run_hello
             ;;
+        --run-camera)
+            run_camera
+            ;;
         --clean)
             clean_deployment
             ;;
@@ -246,11 +268,12 @@ main() {
             show_usage_on_robot
             ;;
         *)
-            echo "Usage: $0 [--run-sensors|--run-hello|--clean]"
+            echo "Usage: $0 [--run-sensors|--run-hello|--run-camera|--clean]"
             echo ""
             echo "  (no args)      Deploy SDK and scripts to robot"
-            echo "  --run-sensors  Run sensor reading test"
+            echo "  --run-sensors  Run sensor reading test (IMU/joints)"
             echo "  --run-hello    Run wave hand test"
+            echo "  --run-camera   Run camera capture test (RealSense)"
             echo "  --clean        Remove deployed files from robot"
             exit 1
             ;;
