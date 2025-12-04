@@ -4,7 +4,8 @@
 # Licensed under Apache-2.0
 #
 # Usage:
-#   ./scripts/deploy-to-robot.sh              # Deploy only
+#   ./scripts/deploy-to-robot.sh              # Deploy SDK and scripts
+#   ./scripts/deploy-to-robot.sh --scripts-only   # Deploy scripts only (skip SDK)
 #   ./scripts/deploy-to-robot.sh --run-sensors    # Deploy and run sensor test
 #   ./scripts/deploy-to-robot.sh --run-hello      # Deploy and run wave hello
 #   ./scripts/deploy-to-robot.sh --run-camera     # Deploy and run camera capture
@@ -261,6 +262,12 @@ main() {
         --clean)
             clean_deployment
             ;;
+        --scripts-only)
+            ssh_cmd "mkdir -p $REMOTE_DIR"
+            deploy_scripts
+            create_run_script
+            show_usage_on_robot
+            ;;
         "")
             deploy_sdk
             deploy_scripts
@@ -268,13 +275,14 @@ main() {
             show_usage_on_robot
             ;;
         *)
-            echo "Usage: $0 [--run-sensors|--run-hello|--run-camera|--clean]"
+            echo "Usage: $0 [--scripts-only|--run-sensors|--run-hello|--run-camera|--clean]"
             echo ""
-            echo "  (no args)      Deploy SDK and scripts to robot"
-            echo "  --run-sensors  Run sensor reading test (IMU/joints)"
-            echo "  --run-hello    Run wave hand test"
-            echo "  --run-camera   Run camera capture test (RealSense)"
-            echo "  --clean        Remove deployed files from robot"
+            echo "  (no args)       Deploy SDK and scripts to robot"
+            echo "  --scripts-only  Deploy scripts only (SDK already on robot)"
+            echo "  --run-sensors   Run sensor reading test (IMU/joints)"
+            echo "  --run-hello     Run wave hand test"
+            echo "  --run-camera    Run camera capture test (RealSense)"
+            echo "  --clean         Remove deployed files from robot"
             exit 1
             ;;
     esac
