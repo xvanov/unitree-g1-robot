@@ -1,0 +1,6 @@
+# G1 Robot Parameters
+robot:
+  ros__parameters:
+    robot_namespace: "g1"
+    robot_ip: "192.168.123.164"   # Default, can be overridden
+    lidar_ip: "192.168.123.120"   # Default, can be overridden

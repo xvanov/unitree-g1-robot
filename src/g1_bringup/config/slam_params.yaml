@@ -1,0 +1,8 @@
+# SLAM Toolbox Configuration
+# Full configuration will be added in Story 3: Navigation Stack Integration
+
+slam_toolbox:
+  ros__parameters:
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI

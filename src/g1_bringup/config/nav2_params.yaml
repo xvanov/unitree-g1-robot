@@ -1,0 +1,8 @@
+# Nav2 Configuration for G1 Inspector
+# Full configuration will be added in Story 3: Navigation Stack Integration
+
+nav2_loco_bridge:
+  ros__parameters:
+    max_linear_velocity: 0.5      # m/s
+    max_angular_velocity: 1.0     # rad/s
+    cmd_vel_timeout: 0.5          # seconds

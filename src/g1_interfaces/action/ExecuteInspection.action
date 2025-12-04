@@ -1,0 +1,11 @@
+# Goal
+string plan_id
+---
+# Result
+bool success
+string report_path
+uint32 defects_found
+float32 coverage_percentage
+---
+# Feedback
+g1_interfaces/InspectionStatus status
