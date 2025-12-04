@@ -18,6 +18,9 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
+            'sim_camera = g1_perception.sim_camera:main',
+            'sim_lidar = g1_perception.sim_lidar:main',
+            'sim_imu = g1_perception.sim_imu:main',
         ],
     },
 )

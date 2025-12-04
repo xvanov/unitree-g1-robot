@@ -19,6 +19,9 @@ setup(
             'config/slam_params.yaml',
             'config/robot_params.yaml',
         ]),
+        ('share/' + package_name + '/config/rviz', [
+            'config/rviz/sim.rviz',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -28,6 +31,7 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
+            'mujoco_sim = g1_bringup.mujoco_sim:main',
         ],
     },
 )
