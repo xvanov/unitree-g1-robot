@@ -1,0 +1,16 @@
+# Docker Compose v2 configuration for G1 Inspector development
+# Supports: Mac (Docker Desktop), Ubuntu 22.04 amd64, Ubuntu 20.04 arm64
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    # Environment variables for CycloneDDS (used in hardware integration)
+    environment:
+      - CYCLONEDDS_URI=file:///workspace/config/cyclonedds.xml

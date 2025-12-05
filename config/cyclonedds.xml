@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CycloneDDS Configuration for G1 Robot Communication -->
+<!-- Robot static IP: 192.168.123.164 -->
+<!-- Your host must be on the same subnet (192.168.123.x) -->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="0">
+    <General>
+      <!-- Auto-detect interface on robot subnet -->
+      <!-- If auto-detect fails, run: scripts/setup-network.sh -->
+      <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+    </General>
+    <Discovery>
+      <!-- Explicitly list robot for faster discovery -->
+      <Peers>
+        <Peer address="192.168.123.164"/>
+      </Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

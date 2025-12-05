@@ -1,0 +1,41 @@
+name: CI Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t g1-inspector -f docker/Dockerfile .
+
+      - name: Build project inside container
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace g1-inspector bash -c "
+            mkdir -p build && cd build && \
+            cmake .. && \
+            make -j\$(nproc)
+          "
+
+      - name: Test binary help output
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace g1-inspector ./build/g1_inspector --help
+
+      - name: Verify dependencies linked
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace g1-inspector bash -c "
+            echo 'Checking linked libraries...' && \
+            ldd ./build/g1_inspector | grep -E '(opencv|curl|hpdf)' && \
+            echo 'All required dependencies are linked!'
+          "

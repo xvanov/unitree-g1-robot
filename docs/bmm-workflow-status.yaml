@@ -90,15 +90,16 @@ workflow_status:
     name: "Implementation"
     workflows:
       - id: "sprint-planning"
-        status: "required"
+        status: "docs/sprint-artifacts/sprint-status.yaml"
         agent: "sm"
         command: "sprint-planning"
-        note: "Blocked until implementation-readiness passes"
+        note: "Sprint planning completed 2025-12-04"
 
 # Current position
 current:
   phase: 3
-  next_workflow: "sprint-planning"
-  next_agent: "sm"
-  next_command: "/bmad:bmm:workflows:sprint-planning"
-  note: "Ready for implementation - gate check passed 2025-12-04"
+  workflow: "dev-story"
+  next_story: "1-3-slam-core"
+  next_agent: "dev"
+  next_command: "/bmad:bmm:workflows:dev-story"
+  note: "Stories 1-1 and 1-2 completed. Story 1-3 ready for development."

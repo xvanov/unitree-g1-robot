@@ -38,9 +38,9 @@ story_location: docs/sprint-artifacts
 development_status:
   # Epic 1: Construction Site Inspector MVP (9 stories)
   epic-1: in-progress
-  1-1-project-setup-docker-environment: in-progress
-  1-2-navigation-simulation-navsim: backlog
-  1-3-slam-core: backlog
+  1-1-project-setup-docker-environment: done
+  1-2-navigation-simulation-navsim: done
+  1-3-slam-core: ready-for-dev
   1-4-hardware-integration: backlog
   1-5-safety-system: backlog
   1-6-state-machine-cli-plan-management: backlog

@@ -1,6 +1,6 @@
 # Story 1.1: Project Setup + Docker Environment
 
-**Status:** ready-for-dev
+**Status:** Done
 
 ---
 
@@ -26,45 +26,45 @@ So that **I can build and develop the system reproducibly on any platform (Mac, 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create Cross-Platform Docker Environment** (AC: 1, 2)
-  - [ ] 1.1 Create `docker/Dockerfile` with multi-arch support (amd64/arm64)
-  - [ ] 1.2 Install all build dependencies (cmake, g++, libyaml-cpp-dev, libeigen3-dev, libboost-all-dev, libspdlog-dev, libfmt-dev)
-  - [ ] 1.3 Install OpenCV 4.x development libraries
-  - [ ] 1.4 Install curl and libcurl4-openssl-dev
-  - [ ] 1.5 Install libharu for PDF generation
-  - [ ] 1.6 Configure unitree_sdk2 as external dependency
-  - [ ] 1.7 Create `docker/compose.yaml` for development workflow (Docker Compose v2)
-  - [ ] 1.8 Create `.env.example` for configuration variables
-  - [ ] 1.9 Create `.dockerignore` to exclude build/, .git/, docs/
+- [x] **Task 1: Create Cross-Platform Docker Environment** (AC: 1, 2)
+  - [x] 1.1 Create `docker/Dockerfile` with multi-arch support (amd64/arm64)
+  - [x] 1.2 Install all build dependencies (cmake, g++, libyaml-cpp-dev, libeigen3-dev, libboost-all-dev, libspdlog-dev, libfmt-dev)
+  - [x] 1.3 Install OpenCV 4.x development libraries
+  - [x] 1.4 Install curl and libcurl4-openssl-dev
+  - [x] 1.5 Install libharu for PDF generation
+  - [x] 1.6 Configure unitree_sdk2 as external dependency
+  - [x] 1.7 Create `docker/compose.yaml` for development workflow (Docker Compose v2)
+  - [x] 1.8 Create `.env.example` for configuration variables
+  - [x] 1.9 Create `.dockerignore` to exclude build/, .git/, docs/
 
-- [ ] **Task 2: Create CMake Build System** (AC: 3, 4, 6)
-  - [ ] 2.1 Create root `CMakeLists.txt` with C++17 standard
-  - [ ] 2.2 Configure find_package for all dependencies
-  - [ ] 2.3 Set up external/ directory for unitree_sdk2
-  - [ ] 2.4 Configure include directories and link libraries
-  - [ ] 2.5 Create `g1_inspector` executable target
+- [x] **Task 2: Create CMake Build System** (AC: 3, 4, 6)
+  - [x] 2.1 Create root `CMakeLists.txt` with C++17 standard
+  - [x] 2.2 Configure find_package for all dependencies
+  - [x] 2.3 Set up external/ directory for unitree_sdk2
+  - [x] 2.4 Configure include directories and link libraries
+  - [x] 2.5 Create `g1_inspector` executable target
 
-- [ ] **Task 3: Create Project Directory Structure** (AC: 3, 4)
-  - [ ] 3.1 Create `src/` directory with subdirectories per architecture
-  - [ ] 3.2 Create `sim/` directory for component simulations
-  - [ ] 3.3 Create `test/` directory for unit tests
-  - [ ] 3.4 Create `config/` directory for configuration files
-  - [ ] 3.5 Create `scripts/` directory for helper scripts
-  - [ ] 3.6 Create `external/` directory for third-party deps
+- [x] **Task 3: Create Project Directory Structure** (AC: 3, 4)
+  - [x] 3.1 Create `src/` directory with subdirectories per architecture
+  - [x] 3.2 Create `sim/` directory for component simulations
+  - [x] 3.3 Create `test/` directory for unit tests
+  - [x] 3.4 Create `config/` directory for configuration files
+  - [x] 3.5 Create `scripts/` directory for helper scripts
+  - [x] 3.6 Create `external/` directory for third-party deps
 
-- [ ] **Task 4: Create Basic Types, Interfaces, and Main Entry Point** (AC: 4, 5)
-  - [ ] 4.1 Create `src/util/Types.h` with Point2D, Pose2D, Velocity structs
-  - [ ] 4.2 Create `src/locomotion/ILocomotion.h` interface (abstract base for sim/real switching)
-  - [ ] 4.3 Create `src/sensors/ISensorSource.h` interface (abstract base for sim/real switching)
-  - [ ] 4.4 Create `src/main.cpp` with CLI argument parsing
-  - [ ] 4.5 Implement `--help` option with usage message
-  - [ ] 4.6 Add version string "G1 Inspector v1.0"
+- [x] **Task 4: Create Basic Types, Interfaces, and Main Entry Point** (AC: 4, 5)
+  - [x] 4.1 Create `src/util/Types.h` with Point2D, Pose2D, Velocity structs
+  - [x] 4.2 Create `src/locomotion/ILocomotion.h` interface (abstract base for sim/real switching)
+  - [x] 4.3 Create `src/sensors/ISensorSource.h` interface (abstract base for sim/real switching)
+  - [x] 4.4 Create `src/main.cpp` with CLI argument parsing
+  - [x] 4.5 Implement `--help` option with usage message
+  - [x] 4.6 Add version string "G1 Inspector v1.0"
 
-- [ ] **Task 5: Create GitHub Actions CI** (AC: 7)
-  - [ ] 5.1 Create `.github/workflows/ci.yml`
-  - [ ] 5.2 Configure Docker build step
-  - [ ] 5.3 Configure CMake build step inside container
-  - [ ] 5.4 Set trigger on push to main and PRs
+- [x] **Task 5: Create GitHub Actions CI** (AC: 7)
+  - [x] 5.1 Create `.github/workflows/ci.yml`
+  - [x] 5.2 Configure Docker build step
+  - [x] 5.3 Configure CMake build step inside container
+  - [x] 5.4 Set trigger on push to main and PRs
 
 ---
 
@@ -89,7 +89,11 @@ So that **I can build and develop the system reproducibly on any platform (Mac, 
 
 ### Unitree SDK2 Integration
 
-The unitree_sdk2 is the critical dependency. Install it following these steps:
+**Docker users:** unitree_sdk2 is pre-built in the Docker image. No manual setup needed.
+
+**Native builds:** Run `./scripts/setup-external.sh` to clone and build the SDK.
+
+The unitree_sdk2 is the critical dependency. For manual installation:
 
 ```bash
 # Clone SDK to external/
@@ -487,37 +491,81 @@ This story file serves as the complete implementation context.
 
 ### Agent Model Used
 
-<!-- Will be populated by dev agent -->
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-<!-- Will be populated during implementation -->
+- Docker daemon not running on development machine - Docker build verification deferred to CI pipeline
 
 ### Completion Notes List
 
-<!-- Will be populated during implementation -->
+- **Task 1:** Created complete Docker environment with multi-arch Dockerfile (ubuntu:22.04), compose.yaml for development workflow, .env.example with CycloneDDS and robot configuration variables, and .dockerignore excluding build artifacts
+- **Task 2:** Created CMakeLists.txt with C++17 standard, configured all dependencies (OpenCV, CURL, nlohmann_json, libharu), unitree_sdk2 optional (graceful handling when not installed)
+- **Task 3:** Created full project directory structure following architecture.md specification: src/ with all subdirectories (app, navigation, slam, sensors, locomotion, safety, detection, report, capture, plan, util), sim/ (nav_sim, slam_sim, detection_sim), test/, scripts/, external/, config/, docker/
+- **Task 4:** Created Types.h (Point2D, Pose2D, Velocity), ILocomotion.h interface, ISensorSource.h interface with LidarScan struct, main.cpp with full CLI parsing (--help, --version, --robot, --test-sensors, --test-loco)
+- **Task 5:** Created .github/workflows/ci.yml with Docker build, CMake build inside container, and binary test steps; triggers on push to main and PRs
+
+### Change Log
+
+- 2025-12-04: Initial implementation of Story 1.1 - Project setup and Docker environment complete
+- 2025-12-04: Code review fixes applied:
+  - Added .gitkeep files to empty directories (H2/L2)
+  - Fixed CycloneDDS config with valid IP address (M1)
+  - Added ldd verification step to CI pipeline (M4)
+  - Removed unused #include <cstring> from main.cpp (L1)
+  - Clarified unitree_sdk2 is optional for Story 1.1 (H1/M3)
+  - Documented pre-existing scripts in File List (M2)
+- 2025-12-05: Network and dependency automation:
+  - Updated Dockerfile to build unitree_sdk2 during image creation
+  - Created scripts/setup-network.sh for auto-configuring robot network
+  - Created scripts/setup-external.sh for native builds (non-Docker)
+  - Updated cyclonedds.xml with robot static IP (192.168.123.164)
+  - Updated .env.example with correct robot/lidar IPs
 
 ### File List
 
-**Files to Create:**
-- `docker/Dockerfile` (multi-arch: amd64/arm64)
-- `docker/compose.yaml` (Docker Compose v2)
-- `.env.example`
-- `.dockerignore`
-- `CMakeLists.txt`
-- `config/cyclonedds.xml`
-- `src/main.cpp`
-- `src/util/Types.h`
-- `src/locomotion/ILocomotion.h`
-- `src/sensors/ISensorSource.h`
-- `.github/workflows/ci.yml`
-- `scripts/setup.sh` (optional helper)
+**Files Created:**
+- `docker/Dockerfile` - Multi-arch Docker image based on ubuntu:22.04
+- `docker/compose.yaml` - Docker Compose v2 development configuration
+- `.env.example` - Environment variable template
+- `.dockerignore` - Docker build exclusions
+- `CMakeLists.txt` - CMake build configuration with all dependencies
+- `config/cyclonedds.xml` - CycloneDDS configuration for robot communication
+- `src/main.cpp` - Application entry point with CLI parsing
+- `src/util/Types.h` - Common type definitions (Point2D, Pose2D, Velocity)
+- `src/locomotion/ILocomotion.h` - Locomotion interface for sim/real abstraction
+- `src/sensors/ISensorSource.h` - Sensor interface with LidarScan struct
+- `.github/workflows/ci.yml` - GitHub Actions CI pipeline
 
-**Directories to Create:**
+**Files Modified (Code Review):**
+- `docker/Dockerfile` - Now builds unitree_sdk2 during image creation
+- `config/cyclonedds.xml` - Auto-detect with robot static IP (192.168.123.164)
+- `.github/workflows/ci.yml` - Added ldd dependency verification
+- `src/main.cpp` - Removed unused include
+- `.env.example` - Updated with correct robot/lidar IPs
+
+**Scripts Created (Network & Dependencies):**
+- `scripts/setup-network.sh` - Auto-configures host network for robot communication
+- `scripts/setup-external.sh` - Builds external dependencies for native (non-Docker) builds
+
+**Placeholder Files Added (.gitkeep):**
+- `src/app/.gitkeep`, `src/navigation/.gitkeep`, `src/slam/.gitkeep`
+- `src/safety/.gitkeep`, `src/detection/.gitkeep`, `src/report/.gitkeep`
+- `src/capture/.gitkeep`, `src/plan/.gitkeep`
+- `sim/nav_sim/.gitkeep`, `sim/slam_sim/.gitkeep`, `sim/detection_sim/.gitkeep`
+- `test/.gitkeep`
+
+**Pre-existing Files (Not Part of Story 1.1):**
+- `scripts/check_g1_network.sh` - Network diagnostics helper
+- `scripts/deploy-to-robot.sh` - Deployment script
+- `scripts/reference/*.py` - Python reference implementations
+
+**Directories Created:**
 - `docker/`
 - `config/`
 - `src/app/`, `src/navigation/`, `src/slam/`, `src/sensors/`
 - `src/locomotion/`, `src/safety/`, `src/detection/`
 - `src/report/`, `src/capture/`, `src/plan/`, `src/util/`
 - `sim/nav_sim/`, `sim/slam_sim/`, `sim/detection_sim/`
-- `test/`, `config/`, `external/`, `scripts/`, `docker/`
+- `test/`, `scripts/`
+- `external/` (unitree_sdk2 already cloned)

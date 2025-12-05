@@ -1,0 +1,26 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+build/
+cmake-build-*/
+
+# Documentation
+docs/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+
+# External dependencies (will be built inside container)
+external/unitree_sdk2/
+
+# Logs
+*.log
