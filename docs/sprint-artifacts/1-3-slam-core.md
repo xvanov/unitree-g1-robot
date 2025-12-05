@@ -1,6 +1,6 @@
 # Story 1.3: SLAM Core
 
-**Status:** ready-for-dev
+**Status:** Done
 
 ---
 
@@ -24,28 +24,28 @@ So that **I can localize and plan paths**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Implement GridMapper Class** (AC: 1, 2)
-  - [ ] 1.1 Create `src/slam/GridMapper.h` - header with class declaration
+- [x] **Task 1: Implement GridMapper Class** (AC: 1, 2)
+  - [x] 1.1 Create `src/slam/GridMapper.h` - header with class declaration
     - Constructor taking resolution (meters/cell), width, height
     - `update(pose, scan)` - integrate new LiDAR data using log-odds
     - `getMap()` - return const reference to OccupancyGrid
     - `saveMap(path)` - export built map as PNG
     - `getAccuracy(ground_truth)` - compare to ground truth map
-  - [ ] 1.2 Create `src/slam/GridMapper.cpp` - implementation
+  - [x] 1.2 Create `src/slam/GridMapper.cpp` - implementation
     - Implement log-odds update formula: `l_new = l_old + l_measurement`
     - `l_occ` (occupied log-odds increment): +0.85f (high confidence for hits)
     - `l_free` (free log-odds increment): -0.4f (lower confidence for free)
     - Clamp log-odds to [-5.0f, 5.0f] to prevent saturation
     - Implement `traceRay()` using Bresenham's line algorithm
     - Mark cells along ray as free, endpoint as occupied
-  - [ ] 1.3 Implement Bresenham ray tracing in `traceRay(from, to)`
+  - [x] 1.3 Implement Bresenham ray tracing in `traceRay(from, to)`
     - Use integer-only Bresenham for efficiency
     - Update log-odds for each cell along ray (free space)
     - Update endpoint cell with occupied log-odds
     - Handle edge cases (ray outside map bounds)
 
-- [ ] **Task 2: Define OccupancyGrid Type** (AC: 1)
-  - [ ] 2.1 Create `src/slam/OccupancyGrid.h` (separate file for SLAM-specific type)
+- [x] **Task 2: Define OccupancyGrid Type** (AC: 1)
+  - [x] 2.1 Create `src/slam/OccupancyGrid.h` (separate file for SLAM-specific type)
     - `std::vector<float> log_odds` - log-odds values (float for precision, matches GridMapper)
     - `int width, height` - grid dimensions in cells
     - `float resolution` - meters per cell (use 0.05f to match NavSim)
@@ -53,22 +53,22 @@ So that **I can localize and plan paths**.
     - Helper methods: `logOddsToProb(float l)`, `probToLogOdds(float p)`
     - `toProbabilityMap()` - convert to `std::vector<uint8_t>` (0=obstacle, 255=free) for PNG export
 
-- [ ] **Task 3: Implement Localizer Stub (MVP: Odometry Pass-through)** (AC: 1)
-  - [ ] 3.1 Create `src/slam/Localizer.h` and `src/slam/Localizer.cpp`
+- [x] **Task 3: Implement Localizer Stub (MVP: Odometry Pass-through)** (AC: 1)
+  - [x] 3.1 Create `src/slam/Localizer.h` and `src/slam/Localizer.cpp`
     - MVP implementation: Simply stores and returns odometry pose
     - `void setOdometry(const Pose2D& pose)` - store pose from odometry
     - `Pose2D getPose() const` - return stored pose
     - No scan matching for MVP (defer to post-MVP if needed)
 
-- [ ] **Task 4: Create SlamSim Executable** (AC: 3, 5)
-  - [ ] 4.1 Create `sim/slam_sim/SlamSim.h` - simulation wrapper
+- [x] **Task 4: Create SlamSim Executable** (AC: 3, 5)
+  - [x] 4.1 Create `sim/slam_sim/SlamSim.h` - simulation wrapper
     - `SlamSim(ground_truth_map_path, resolution)` - load ground truth via NavSim
     - `run()` - execute full mapping simulation
     - `getBuiltMap()` - return GridMapper's OccupancyGrid
     - `computeAccuracy()` - compare built vs ground truth
     - `saveBuiltMap(path)` - export PNG (0=obstacle, 255=free)
     - `saveAccuracy(path)` - JSON metrics
-  - [ ] 4.2 Create `sim/slam_sim/SlamSim.cpp` - implementation
+  - [x] 4.2 Create `sim/slam_sim/SlamSim.cpp` - implementation
     - **CRITICAL: Reuse NavSim - do NOT reimplement raycasting:**
       - Create `NavSim nav_sim(ground_truth_path, resolution)`
       - Use `nav_sim.getWidth()`, `nav_sim.getHeight()` for GridMapper dimensions
@@ -77,7 +77,7 @@ So that **I can localize and plan paths**.
     - Create GridMapper with same dimensions as NavSim
     - Feed simulated scans to GridMapper.update(pose, scan)
     - Accuracy = % of cells where (built > 0) == (truth < 128)
-  - [ ] 4.3 Create `sim/slam_sim/main.cpp` - executable entry point
+  - [x] 4.3 Create `sim/slam_sim/main.cpp` - executable entry point
     - Parse CLI args: `--map`, `--output` (create output dir if missing)
     - **Snake trajectory generation:**
       - Start at (1.0, 1.0) in world coords
@@ -86,16 +86,16 @@ So that **I can localize and plan paths**.
       - Step size: 0.1m per pose update
     - Output: `built_map.png`, `accuracy.json`
 
-- [ ] **Task 5: Create Unit Tests** (AC: 4)
-  - [ ] 5.1 Create `test/test_slam.cpp`
+- [x] **Task 5: Create Unit Tests** (AC: 4)
+  - [x] 5.1 Create `test/test_slam.cpp`
     - Test log-odds update math
     - Test Bresenham ray tracing correctness
     - Test GridMapper builds map from known scans
     - Test accuracy calculation
-  - [ ] 5.2 Update CMakeLists.txt to build test_slam
+  - [x] 5.2 Update CMakeLists.txt to build test_slam
 
-- [ ] **Task 6: CMake Integration** (AC: 5)
-  - [ ] 6.1 Update CMakeLists.txt
+- [x] **Task 6: CMake Integration** (AC: 5)
+  - [x] 6.1 Update CMakeLists.txt
     - Add slam library with GridMapper, Localizer
     - Add slam_sim executable
     - Add test_slam test executable
@@ -468,7 +468,7 @@ if (test_map.cols != 200 || test_map.rows != 200) {
 
 ### Performance Optimization Notes (Post-MVP)
 
-1. **Trajectory step size:** Currently 0.1m produces ~1850 poses for 10x10m map. Can increase to 0.2m for 4x faster simulation with minimal accuracy loss.
+1. **Trajectory step size:** Currently 0.1m produces ~1629 poses for 10x10m map with 0.5m margins. Can increase to 0.2m for 4x faster simulation with minimal accuracy loss.
 
 2. **Ray tracing parallelism:** Each ray in `update()` is independent. Future optimization could process rays in parallel using `std::execution::par`.
 
@@ -668,16 +668,44 @@ This story file serves as the complete implementation context.
 
 ### Agent Model Used
 
-(Fill after implementation)
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
-(Fill during implementation)
+- All 10 unit tests passed on first run
+- SLAM simulation achieved 99.995% accuracy (far exceeds 90% threshold)
+- No regressions in navigation tests (20 tests passed)
 
 ### Completion Notes List
 
-(Fill after each task completion)
+- **Task 2:** Created OccupancyGrid.h with log-odds conversion functions (logOddsToProb, probToLogOdds, logOddsToPng) and toProbabilityMap() helper
+- **Task 1:** Implemented GridMapper with Bresenham ray tracing, log-odds updates with l_occ=0.85, l_free=-0.4, clamping to [-5,5]
+- **Task 3:** Created Localizer stub with simple odometry pass-through (MVP approach)
+- **Task 4:** Created SlamSim executable that reuses NavSim for raycasting, generates snake trajectory, computes accuracy
+- **Task 5:** Created 10 unit tests covering log-odds math, Bresenham tracing, GridMapper updates, accuracy calculation, Localizer
+- **Task 6:** Updated CMakeLists.txt with nav_sim_lib (shared), slam library, slam_sim executable, test_slam tests
 
 ### File List
 
-(Fill with created/modified files after implementation)
+**New files created:**
+- src/slam/OccupancyGrid.h
+- src/slam/GridMapper.h
+- src/slam/GridMapper.cpp
+- src/slam/Localizer.h
+- src/slam/Localizer.cpp
+- sim/slam_sim/SlamSim.h
+- sim/slam_sim/SlamSim.cpp
+- sim/slam_sim/main.cpp
+- test/test_slam.cpp
+
+**Modified files:**
+- CMakeLists.txt (added slam library, nav_sim_lib, slam_sim executable, test_slam)
+
+**Output files generated:**
+- outputs/built_map.png
+- outputs/accuracy.json
+
+### Change Log
+
+- 2025-12-05: Implemented SLAM Core (Story 1-3) - GridMapper with log-odds occupancy grid, Bresenham ray tracing, SlamSim executable, 10 unit tests. Accuracy: 99.995%
+- 2025-12-05: Code Review Fixes - Added empty scan guard (M1), fixed path concatenation (M2), removed hardcoded map size warning (M3), improved accuracy metric to track explored cells separately (M4), added EmptyScan test (now 11 tests), fixed JSON precision (L2). Validation report: docs/sprint-artifacts/validation-report-1-3-2025-12-05.md

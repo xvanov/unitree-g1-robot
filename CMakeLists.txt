@@ -62,15 +62,44 @@ if(unitree_sdk2_FOUND)
     target_compile_definitions(g1_inspector PRIVATE HAS_UNITREE_SDK2)
 endif()
 
+# NavSim library (shared between nav_sim and slam_sim)
+add_library(nav_sim_lib
+    sim/nav_sim/NavSim.cpp
+)
+target_link_libraries(nav_sim_lib ${OpenCV_LIBS} nlohmann_json::nlohmann_json)
+
 # NavSim executable
 add_executable(nav_sim
-    sim/nav_sim/NavSim.cpp
     sim/nav_sim/SimLocomotion.cpp
     sim/nav_sim/SimSensorSource.cpp
     sim/nav_sim/main.cpp
 )
 target_link_libraries(nav_sim
+    nav_sim_lib
     navigation
+    ${OpenCV_LIBS}
+    nlohmann_json::nlohmann_json
+)
+
+# ============================================
+# SLAM (Story 1-3)
+# ============================================
+
+# SLAM library
+add_library(slam
+    src/slam/GridMapper.cpp
+    src/slam/Localizer.cpp
+)
+target_link_libraries(slam ${OpenCV_LIBS})
+
+# SlamSim executable - reuses NavSim via nav_sim_lib
+add_executable(slam_sim
+    sim/slam_sim/SlamSim.cpp
+    sim/slam_sim/main.cpp
+)
+target_link_libraries(slam_sim
+    slam
+    nav_sim_lib
     ${OpenCV_LIBS}
     nlohmann_json::nlohmann_json
 )
@@ -85,6 +114,14 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_navigation COMMAND test_navigation)
+
+    # SLAM unit tests
+    add_executable(test_slam test/test_slam.cpp)
+    target_link_libraries(test_slam
+        slam
+        GTest::gtest_main
+    )
+    add_test(NAME test_slam COMMAND test_slam)
 else()
     message(WARNING "GTest not found - unit tests will not be built")
 endif()
