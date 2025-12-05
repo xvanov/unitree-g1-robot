@@ -80,6 +80,22 @@ else()
 endif()
 
 # ============================================
+# Capture (Story 1-7)
+# ============================================
+
+# Capture library (ImageCapture, PlanCorrelator)
+add_library(capture
+    src/capture/ImageCapture.cpp
+    src/capture/PlanCorrelator.cpp
+)
+target_include_directories(capture PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(capture
+    plan
+    ${OpenCV_LIBS}
+    nlohmann_json::nlohmann_json
+)
+
+# ============================================
 # Application (Story 1-6)
 # ============================================
 
@@ -117,6 +133,19 @@ if(unitree_sdk2_FOUND)
     target_compile_definitions(loco_hw PRIVATE HAS_UNITREE_SDK2)
 endif()
 
+# ============================================
+# Safety System (Story 1-5)
+# ============================================
+
+# Safety library
+add_library(safety
+    src/safety/SafetyMonitor.cpp
+)
+target_include_directories(safety PUBLIC ${CMAKE_SOURCE_DIR}/src)
+
+# Safety depends on locomotion and sensors
+target_link_libraries(safety sensors loco_hw)
+
 # Main executable
 add_executable(g1_inspector
     src/main.cpp
@@ -128,8 +157,10 @@ target_link_libraries(g1_inspector
     slam
     sensors
     loco_hw
+    safety
     plan
     app
+    capture
     ${OpenCV_LIBS}
     ${CURL_LIBRARIES}
     ${HPDF_LIBRARY}
@@ -182,7 +213,8 @@ if(GTest_FOUND)
         navigation
         GTest::gtest_main
     )
-    add_test(NAME test_navigation COMMAND test_navigation)
+    add_test(NAME test_navigation COMMAND test_navigation
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # SLAM unit tests
     add_executable(test_slam test/test_slam.cpp)
@@ -190,7 +222,8 @@ if(GTest_FOUND)
         slam
         GTest::gtest_main
     )
-    add_test(NAME test_slam COMMAND test_slam)
+    add_test(NAME test_slam COMMAND test_slam
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # State Machine unit tests (Story 1-6)
     add_executable(test_state_machine test/test_state_machine.cpp)
@@ -198,7 +231,8 @@ if(GTest_FOUND)
         app
         GTest::gtest_main
     )
-    add_test(NAME test_state_machine COMMAND test_state_machine)
+    add_test(NAME test_state_machine COMMAND test_state_machine
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # Plan Manager unit tests (Story 1-6)
     add_executable(test_plan_manager test/test_plan_manager.cpp)
@@ -206,7 +240,8 @@ if(GTest_FOUND)
         plan
         GTest::gtest_main
     )
-    add_test(NAME test_plan_manager COMMAND test_plan_manager)
+    add_test(NAME test_plan_manager COMMAND test_plan_manager
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # Hardware unit tests (Story 1-4)
     add_executable(test_hardware test/test_hardware.cpp)
@@ -214,12 +249,38 @@ if(GTest_FOUND)
         loco_hw
         GTest::gtest_main
     )
-    add_test(NAME test_hardware COMMAND test_hardware)
+    add_test(NAME test_hardware COMMAND test_hardware
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # Safety unit tests (Story 1-5)
+    add_executable(test_safety test/test_safety.cpp)
+    target_link_libraries(test_safety
+        safety
+        GTest::gtest_main
+    )
+    add_test(NAME test_safety COMMAND test_safety
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # Capture unit tests (Story 1-7)
+    add_executable(test_capture test/test_capture.cpp)
+    target_link_libraries(test_capture
+        capture
+        nlohmann_json::nlohmann_json
+        GTest::gtest_main
+    )
+    add_test(NAME test_capture COMMAND test_capture
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     # End-to-end test for Story 1-6
     add_test(NAME test_e2e_story_1_6
         COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_6.sh
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+
+    # End-to-end test for Story 1-7 (Visual Capture)
+    add_test(NAME test_e2e_story_1_7
+        COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_7.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
 else()
     message(WARNING "GTest not found - unit tests will not be built")
