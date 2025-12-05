@@ -99,7 +99,7 @@ workflow_status:
 current:
   phase: 3
   workflow: "dev-story"
-  next_story: "1-3-slam-core"
+  next_story: "1-8-vlm-defect-detection"
   next_agent: "dev"
   next_command: "/bmad:bmm:workflows:dev-story"
-  note: "Stories 1-1 and 1-2 completed. Story 1-3 ready for development."
+  note: "Stories 1-1, 1-2, 1-3, 1-4, 1-5, 1-6 completed. Story 1-7 in review."

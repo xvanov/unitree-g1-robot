@@ -35,8 +35,10 @@ RUN apt-get update && apt-get install -y \
     # curl and libcurl for HTTP client
     libcurl4-openssl-dev \
     curl \
-    # libharu for PDF generation
+    # libharu for PDF generation (output)
     libhpdf-dev \
+    # Poppler for PDF parsing (input - load PDF construction plans)
+    libpoppler-cpp-dev \
     # nlohmann/json header-only library
     nlohmann-json3-dev \
     # Google Test for unit testing

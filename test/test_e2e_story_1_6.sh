@@ -15,12 +15,12 @@ FAIL_COUNT=0
 
 pass() {
     echo -e "${GREEN}✓ PASS${NC}: $1"
-    ((PASS_COUNT++))
+    PASS_COUNT=$((PASS_COUNT + 1))
 }
 
 fail() {
     echo -e "${RED}✗ FAIL${NC}: $1"
-    ((FAIL_COUNT++))
+    FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 
 section() {
@@ -28,7 +28,7 @@ section() {
     echo -e "${YELLOW}=== $1 ===${NC}"
 }
 
-# Determine paths
+# Determine paths - script runs from project root (CMAKE_SOURCE_DIR)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/build"
@@ -40,13 +40,14 @@ if [[ ! -f "$BUILD_DIR/g1_inspector" ]]; then
     exit 1
 fi
 
-cd "$BUILD_DIR"
+# Stay in project root (working directory set by CMake), use full path to executable
+G1_INSPECTOR="$BUILD_DIR/g1_inspector"
 
 section "Unit Tests"
 
 # Test 1: State machine unit tests
 echo "Running test_state_machine..."
-if ./test_state_machine > /tmp/test_sm.log 2>&1; then
+if "$BUILD_DIR/test_state_machine" > /tmp/test_sm.log 2>&1; then
     TEST_COUNT=$(grep -c "PASSED\|OK" /tmp/test_sm.log || echo "0")
     pass "test_state_machine passed ($TEST_COUNT tests)"
 else
@@ -56,7 +57,7 @@ fi
 
 # Test 2: Plan manager unit tests
 echo "Running test_plan_manager..."
-if ./test_plan_manager > /tmp/test_pm.log 2>&1; then
+if "$BUILD_DIR/test_plan_manager" > /tmp/test_pm.log 2>&1; then
     TEST_COUNT=$(grep -c "PASSED\|OK" /tmp/test_pm.log || echo "0")
     pass "test_plan_manager passed ($TEST_COUNT tests)"
 else
@@ -67,14 +68,14 @@ fi
 section "CLI Help & Version"
 
 # Test 3: Help command
-if ./g1_inspector --help 2>&1 | grep -q "interactive"; then
+if "$G1_INSPECTOR" --help 2>&1 | grep -q "interactive"; then
     pass "--help shows interactive mode option"
 else
     fail "--help missing interactive mode"
 fi
 
 # Test 4: Help shows CLI commands
-if ./g1_inspector --help 2>&1 | grep -q "estop"; then
+if "$G1_INSPECTOR" --help 2>&1 | grep -q "estop"; then
     pass "--help shows CLI commands"
 else
     fail "--help missing CLI commands"
@@ -83,7 +84,7 @@ fi
 section "Single Command Mode"
 
 # Test 5: Status command (single mode)
-OUTPUT=$(./g1_inspector status 2>&1)
+OUTPUT=$("$G1_INSPECTOR" status 2>&1)
 if echo "$OUTPUT" | grep -q "State: IDLE"; then
     pass "status command shows IDLE state"
 else
@@ -91,7 +92,7 @@ else
 fi
 
 # Test 6: Help command (single mode)
-OUTPUT=$(./g1_inspector help 2>&1)
+OUTPUT=$("$G1_INSPECTOR" help 2>&1)
 if echo "$OUTPUT" | grep -q "Available commands"; then
     pass "help command works in single mode"
 else
@@ -100,8 +101,8 @@ fi
 
 section "Plan Loading"
 
-# Test 7: Upload plan
-OUTPUT=$(./g1_inspector upload --plan ../test_data/office.png 2>&1)
+# Test 7: Upload plan (paths relative to project root)
+OUTPUT=$("$G1_INSPECTOR" upload --plan test_data/office.png 2>&1)
 if echo "$OUTPUT" | grep -q "Plan loaded"; then
     pass "upload command loads PNG plan"
 else
@@ -109,7 +110,7 @@ else
 fi
 
 # Test 8: Upload with trade type
-OUTPUT=$(./g1_inspector upload --plan ../test_data/corridor.png --trade electrical 2>&1)
+OUTPUT=$("$G1_INSPECTOR" upload --plan test_data/corridor.png --trade electrical 2>&1)
 if echo "$OUTPUT" | grep -q "Trade: electrical"; then
     pass "upload command accepts trade type"
 else
@@ -117,7 +118,7 @@ else
 fi
 
 # Test 9: Upload nonexistent file
-OUTPUT=$(./g1_inspector upload --plan nonexistent.png 2>&1)
+OUTPUT=$("$G1_INSPECTOR" upload --plan nonexistent.png 2>&1)
 if echo "$OUTPUT" | grep -q "Failed to load"; then
     pass "upload handles missing file gracefully"
 else
@@ -125,7 +126,7 @@ else
 fi
 
 # Test 10: Waypoints generated
-OUTPUT=$(./g1_inspector "upload --plan ../test_data/office.png" 2>&1)
+OUTPUT=$("$G1_INSPECTOR" "upload --plan test_data/office.png" 2>&1)
 if echo "$OUTPUT" | grep -q "Waypoints:"; then
     pass "upload generates waypoints"
 else
@@ -134,12 +135,13 @@ fi
 
 section "State Transitions (via CLI commands)"
 
-# Create a test script for interactive mode
+# Create a test script for interactive mode (paths relative to project root)
+# Flow: IDLE -> start -> CALIBRATING -> calibrate -> INSPECTING -> pause -> PAUSED
 cat > /tmp/cli_test_input.txt << 'EOF'
 status
-upload --plan ../test_data/office.png
-calibrate --position 1,1,0
+upload --plan test_data/office.png
 start
+calibrate --position 1,1,0
 status
 pause
 status
@@ -152,6 +154,7 @@ status
 clearestop
 status
 start
+calibrate --position 0,0,0
 status
 home
 status
@@ -160,7 +163,7 @@ EOF
 
 # Test 11: Run interactive session with scripted input
 echo "Running interactive CLI test sequence..."
-OUTPUT=$(./g1_inspector --interactive < /tmp/cli_test_input.txt 2>&1)
+OUTPUT=$("$G1_INSPECTOR" --interactive < /tmp/cli_test_input.txt 2>&1)
 
 # Test 12: Verify state transitions occurred
 if echo "$OUTPUT" | grep -q "State: CALIBRATING"; then
@@ -204,7 +207,7 @@ fi
 section "Edge Cases"
 
 # Test 15: Empty command handling
-OUTPUT=$(echo "" | ./g1_inspector --interactive 2>&1)
+OUTPUT=$(echo "" | "$G1_INSPECTOR" --interactive 2>&1)
 if [[ $? -eq 0 ]] || echo "$OUTPUT" | grep -q "g1>"; then
     pass "empty input handled gracefully"
 else
@@ -212,7 +215,7 @@ else
 fi
 
 # Test 16: Unknown command
-OUTPUT=$(echo -e "foobar\nquit" | ./g1_inspector --interactive 2>&1)
+OUTPUT=$(echo -e "foobar\nquit" | "$G1_INSPECTOR" --interactive 2>&1)
 if echo "$OUTPUT" | grep -q "Unknown command"; then
     pass "unknown command shows error message"
 else
@@ -220,7 +223,7 @@ else
 fi
 
 # Test 17: Waypoints without plan
-OUTPUT=$(./g1_inspector waypoints 2>&1)
+OUTPUT=$("$G1_INSPECTOR" waypoints 2>&1)
 if echo "$OUTPUT" | grep -q "No plan loaded"; then
     pass "waypoints without plan shows helpful message"
 else

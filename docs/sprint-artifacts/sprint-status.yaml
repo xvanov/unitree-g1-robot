@@ -40,11 +40,11 @@ development_status:
   epic-1: in-progress
   1-1-project-setup-docker-environment: done
   1-2-navigation-simulation-navsim: done
-  1-3-slam-core: review
-  1-4-hardware-integration: ready-for-dev
-  1-5-safety-system: backlog
-  1-6-state-machine-cli-plan-management: backlog
-  1-7-visual-capture: backlog
-  1-8-vlm-defect-detection: backlog
+  1-3-slam-core: done
+  1-4-hardware-integration: done
+  1-5-safety-system: done
+  1-6-state-machine-cli-plan-management: done
+  1-7-visual-capture: review
+  1-8-vlm-defect-detection: ready-for-dev
   1-9-report-generation: backlog
   epic-1-retrospective: optional

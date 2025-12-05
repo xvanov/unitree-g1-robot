@@ -11,9 +11,12 @@
 #include "sensors/RealSensorSource.h"
 #include "locomotion/LocoController.h"
 #include "locomotion/RealLocomotion.h"
+#include "safety/SafetyMonitor.h"
 #include "app/StateMachine.h"
 #include "app/CliHandler.h"
 #include "plan/PlanManager.h"
+#include "capture/ImageCapture.h"
+#include "capture/PlanCorrelator.h"
 
 constexpr const char* VERSION = "G1 Inspector v1.0";
 
@@ -42,6 +45,7 @@ void printUsage() {
               << "  --test-sensors       Run sensor diagnostics\n"
               << "  --test-loco          Run locomotion test (robot will move!)\n"
               << "  --test-wave          Arm wave test (robot waves hand)\n"
+              << "  --test-safety        Run safety system diagnostics\n"
               << "  --hello-world        Full integration test sequence\n"
               << "\nCLI Commands (can be run directly or in interactive mode):\n"
               << "  status               Show current state\n"
@@ -243,6 +247,141 @@ int runWaveTest(const std::string& interface) {
 #endif
 }
 
+int runSafetyTest(const std::string& interface) {
+#ifdef HAS_UNITREE_SDK2
+    std::cout << "\n=== Safety System Test ===" << std::endl;
+
+    // Initialize sensors
+    auto sensor_manager = std::make_shared<SensorManager>();
+    if (!sensor_manager->init(interface)) {
+        std::cerr << "[ERROR] Failed to initialize sensors" << std::endl;
+        return 1;
+    }
+
+    // Initialize locomotion
+    g_loco_controller = std::make_shared<LocoController>();
+    if (!g_loco_controller->init(interface)) {
+        std::cerr << "[ERROR] Failed to initialize locomotion" << std::endl;
+        return 1;
+    }
+
+    // Initialize safety monitor
+    SafetyMonitor safety;
+    safety.init(g_loco_controller.get(), sensor_manager.get());
+
+    int test_failures = 0;  // Track failures for exit code
+
+    // Test 1: Battery status
+    std::cout << "\n[TEST 1] Battery Monitor" << std::endl;
+    safety.update();  // Run initial checks
+    float battery = safety.getBatteryPercent();
+    std::cout << "  Battery: " << battery << "%" << std::endl;
+    std::cout << "  Warning threshold: 20%" << std::endl;
+    std::cout << "  Critical threshold: 10%" << std::endl;
+    std::cout << "  Shutdown threshold: 5%" << std::endl;
+    std::cout << "  Status: " << (battery > 20 ? "OK" : (battery > 10 ? "WARNING" : "CRITICAL")) << std::endl;
+
+    // Test 2: Collision detection
+    std::cout << "\n[TEST 2] Collision Detection" << std::endl;
+    safety.update();  // Run checks
+    auto status = safety.getStatus();
+    std::cout << "  Min obstacle distance: " << status.min_obstacle_distance << "m" << std::endl;
+    std::cout << "  Warning threshold: 0.3m" << std::endl;
+    std::cout << "  E-stop threshold: 0.15m" << std::endl;
+    std::cout << "  Collision imminent: " << (safety.isCollisionImminent() ? "YES" : "NO") << std::endl;
+
+    // Test 3: E-stop response time (CRITICAL - must pass)
+    std::cout << "\n[TEST 3] E-Stop Response Time" << std::endl;
+    std::cout << "  Triggering E-stop..." << std::endl;
+
+    auto start = std::chrono::steady_clock::now();
+    safety.triggerEstop();
+    auto end = std::chrono::steady_clock::now();
+
+    auto response_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << "  Response time: " << response_ms << "ms" << std::endl;
+
+    // CRITICAL: Fail test if E-stop response exceeds 500ms requirement
+    if (response_ms >= 500) {
+        std::cerr << "  Result: FAIL - Response time " << response_ms
+                  << "ms exceeds 500ms requirement!" << std::endl;
+        test_failures++;
+    } else {
+        std::cout << "  Result: PASS (requirement: <500ms)" << std::endl;
+    }
+
+    // Clear E-stop for status report
+    safety.clearEstop();
+
+    // Test 4: State queries
+    std::cout << "\n[TEST 4] State Queries" << std::endl;
+    status = safety.getStatus();
+    std::cout << "  Safety State: " << status.stateToString() << std::endl;
+    std::cout << "  E-stop Active: " << (safety.isEstopActive() ? "YES" : "NO") << std::endl;
+    std::cout << "  Degraded Mode: " << (safety.isInDegradedMode() ? "YES" : "NO") << std::endl;
+
+    // Test 5: Watchdog behavior (AC6)
+    std::cout << "\n[TEST 5] Watchdog Behavior" << std::endl;
+
+    // Configure short timeout for test
+    safety.setWatchdogTimeout(0.3f);  // 300ms for faster test
+    std::cout << "  Watchdog timeout: 300ms (test mode)" << std::endl;
+
+    // Feed watchdog to enable it
+    safety.feedWatchdog();
+    std::cout << "  Watchdog enabled (fed)" << std::endl;
+
+    // Verify immediate update doesn't trigger E-stop
+    safety.update();
+    if (safety.isEstopActive()) {
+        std::cerr << "  Result: FAIL - Watchdog triggered immediately after feed!" << std::endl;
+        test_failures++;
+    } else {
+        std::cout << "  Immediate check: PASS (no false trigger)" << std::endl;
+    }
+
+    // Wait for timeout and verify E-stop triggers
+    std::cout << "  Waiting 400ms for timeout..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    safety.update();
+
+    if (!safety.isEstopActive()) {
+        std::cerr << "  Result: FAIL - Watchdog did NOT trigger E-stop after timeout!" << std::endl;
+        test_failures++;
+    } else {
+        std::cout << "  Timeout check: PASS (E-stop triggered correctly)" << std::endl;
+    }
+
+    // Clear E-stop for summary
+    safety.clearEstop();
+
+    // Summary
+    std::cout << "\n[SUMMARY] Safety System Status" << std::endl;
+    std::cout << "  State: " << status.stateToString() << std::endl;
+    std::cout << "  LiDAR: " << (status.lidar_healthy ? "Healthy" : "FAILED") << std::endl;
+    std::cout << "  IMU: " << (status.imu_healthy ? "Healthy" : "FAILED") << std::endl;
+    std::cout << "  Degraded mode: " << (status.degraded_mode ? "YES" : "NO") << std::endl;
+
+    // Check status staleness
+    auto age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - status.last_update).count();
+    std::cout << "  Status age: " << age_ms << "ms" << std::endl;
+
+    // Return non-zero exit code if any critical tests failed
+    if (test_failures > 0) {
+        std::cerr << "\n[ERROR] " << test_failures << " critical test(s) failed!" << std::endl;
+        return 1;
+    }
+
+    std::cout << "\n[SUCCESS] All safety tests passed" << std::endl;
+    return 0;
+#else
+    (void)interface;
+    std::cerr << "[ERROR] unitree_sdk2 not available - cannot run safety test" << std::endl;
+    return 1;
+#endif
+}
+
 int runHelloWorld(const std::string& interface) {
 #ifdef HAS_UNITREE_SDK2
     std::cout << "\n=== Hello World Integration Test ===" << std::endl;
@@ -357,10 +496,103 @@ int runCli(bool interactive, const std::string& singleCommand, const std::string
     (void)interface;  // Suppress unused warning
 #endif
 
+    // Initialize capture system (Story 1-7)
+    auto image_capture = std::make_shared<ImageCapture>(sensor_source.get(), plan_manager.get());
+    auto plan_correlator = std::make_shared<PlanCorrelator>(plan_manager.get());
+
     CliHandler cli(state_machine.get(), plan_manager.get(), sensor_source.get());
 
     if (interactive) {
+        // Run CLI with background inspection loop for capture
+        std::atomic<bool> cli_running{true};
+        InspectionState last_state = InspectionState::IDLE;
+        std::string session_id;
+
+        // Background thread for capture during inspection
+        std::thread capture_thread([&]() {
+            try {
+                while (cli_running.load() && g_running.load()) {
+                    InspectionState current_state = state_machine->getState();
+
+                    // Handle state transitions for capture
+                    if (current_state == InspectionState::INSPECTING && last_state != InspectionState::INSPECTING) {
+                        // Entering INSPECTING state - start capture
+                        if (plan_manager->isLoaded() && !image_capture->isCapturing()) {
+                            session_id = "insp_" + std::to_string(std::time(nullptr));
+                            if (!image_capture->startCapture(session_id)) {
+                                std::cerr << "[CAPTURE] Warning: Failed to start capture session" << std::endl;
+                            } else {
+                                // Initialize coverage tracking
+                                plan_correlator->initFromPlan();
+                            }
+                        } else if (!plan_manager->isLoaded()) {
+                            std::cerr << "[CAPTURE] Warning: No plan loaded - capture disabled" << std::endl;
+                        }
+                    } else if (current_state != InspectionState::INSPECTING && last_state == InspectionState::INSPECTING) {
+                        // Leaving INSPECTING state - stop capture
+                        if (image_capture->isCapturing()) {
+                            image_capture->stopCapture();
+
+                            // Save coverage map
+                            if (plan_correlator->isInitialized() && !session_id.empty()) {
+                                std::string coverage_path = image_capture->getCurrentSessionDir() + "/coverage.png";
+                                plan_correlator->saveCoverageMap(coverage_path);
+                                // LOW-1 FIX: Use [CORRELATOR] prefix for coverage tracking messages
+                                std::cout << "[CORRELATOR] Coverage: " << std::fixed << std::setprecision(1)
+                                          << plan_correlator->getCoveragePercent() << "%" << std::endl;
+                            }
+                        }
+                    }
+
+                    // Update coverage and capture if in INSPECTING state
+                    if (current_state == InspectionState::INSPECTING) {
+                        Pose2D pose{0, 0, 0};
+                        if (sensor_source) {
+                            pose = sensor_source->getPose();
+                        }
+
+                        // Always update coverage tracking based on robot pose (independent of camera)
+                        if (plan_correlator->isInitialized()) {
+                            plan_correlator->updateCoverage(pose);
+                        }
+
+                        // Capture frame if camera available (interval enforced internally)
+                        if (image_capture->isCapturing()) {
+                            image_capture->captureFrame(pose);
+                        }
+                    }
+
+                    last_state = current_state;
+
+                    // Main loop rate limiting (20Hz)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                }
+
+                // Ensure capture is stopped on exit
+                if (image_capture->isCapturing()) {
+                    image_capture->stopCapture();
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[CAPTURE] Thread exception: " << e.what() << std::endl;
+                if (image_capture->isCapturing()) {
+                    try { image_capture->stopCapture(); } catch (...) {}
+                }
+            } catch (...) {
+                std::cerr << "[CAPTURE] Thread unknown exception" << std::endl;
+                if (image_capture->isCapturing()) {
+                    try { image_capture->stopCapture(); } catch (...) {}
+                }
+            }
+        });
+
+        // Run CLI in main thread
         cli.runInteractiveMode();
+
+        // Signal capture thread to stop
+        cli_running.store(false);
+        if (capture_thread.joinable()) {
+            capture_thread.join();
+        }
     } else {
         cli.processCommand(singleCommand);
     }
@@ -377,6 +609,7 @@ int main(int argc, char* argv[]) {
     bool testSensors = false;
     bool testLoco = false;
     bool testWave = false;
+    bool testSafety = false;
     bool helloWorld = false;
     bool interactive = false;
     std::string singleCommand;
@@ -425,6 +658,11 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        if (arg == "--test-safety") {
+            testSafety = true;
+            continue;
+        }
+
         if (arg == "--hello-world") {
             helloWorld = true;
             continue;
@@ -457,6 +695,10 @@ int main(int argc, char* argv[]) {
 
     if (testWave) {
         return runWaveTest(interface);
+    }
+
+    if (testSafety) {
+        return runSafetyTest(interface);
     }
 
     if (helloWorld) {
