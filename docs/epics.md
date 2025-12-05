@@ -1,941 +1,678 @@
-# unitree-g1-robot - Epic Breakdown
+# Epic Breakdown - Lightweight C++ Stack
 
+**Project:** unitree-g1-robot
 **Author:** BMAD
 **Date:** 2025-12-04
-**Project Type:** IoT/Embedded Robotics Integration
-**Approach:** Integration of proven libraries and APIs (Nav2, slam_toolbox, Unitree SDK, VLM APIs)
+**Architecture:** v2.0 - C++ with unitree_sdk2 (no ROS2)
 
 ---
 
 ## Overview
 
-This document provides the epic and story breakdown for unitree-g1-robot. This is primarily **integration work** - connecting well-established robotics libraries and AI APIs, not building novel systems from scratch.
+This document defines the epic and story breakdown for the Unitree G1 construction site inspector, built on the **lightweight C++ architecture**.
 
-**Core Stack (Already Built):**
-- Unitree SDK2 - Robot locomotion (proven, just call it)
-- Nav2 + slam_toolbox - Navigation and SLAM (industry standard)
-- RealSense + Livox drivers - Sensor data (plug and play)
-- VLM APIs (GPT-4V/Claude) - Defect detection (API calls)
-- ReportLab - PDF generation (standard library)
+### Key Principles
 
-**Our Job:** Wire these together into an inspection workflow.
+1. **Single C++ Binary** - No ROS2, no Python, no middleware overhead
+2. **Unitree SDK Direct** - SDK handles DDS, we use high-level API
+3. **Shared Core, Different I/O** - Same algorithms for sim and real robot
+4. **Component Simulations** - Fast verification without hardware
+5. **Agentic Development** - Each story has measurable verification criteria
 
-**Key Principle:** Each story delivers a runnable, testable increment. No story is "done" until you can demonstrate the functionality working.
+### Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| Language | C++17 |
+| Robot SDK | unitree_sdk2 (DDS abstracted) |
+| Image Processing | OpenCV |
+| HTTP Client | curl |
+| JSON | nlohmann/json |
+| PDF | libharu |
+| Build | CMake |
 
 ---
 
 ## Epic 1: Construction Site Inspector MVP
 
-**Goal:** Autonomous robot that navigates a construction site, captures images, detects defects via VLM, and generates PDF reports.
+**Goal:** Autonomous robot that navigates a construction site, captures images, detects defects via VLM API, and generates PDF reports.
 
-**Total Stories:** 13
-
-| # | Story | Runnable Deliverable |
-|---|-------|---------------------|
-| 1 | Project Setup & ROS2 Workspace | `colcon build` succeeds, interfaces importable |
-| 2 | Simulation Environment | Launch sim, see robot in RViz, teleop works |
-| 2.5 | Hardware Connectivity - Hello World | Real robot waves, sensor data received |
-| 2.6 | Sensor Hello World - Multi-Sensor Validation | Camera, LiDAR, audio captured and viewable in RViz |
-| 3 | Navigation Stack Integration | Send nav goal, robot navigates autonomously |
-| 4 | Localization & Safety Systems | Trigger E-stop, see safety behaviors |
-| 5 | Plan Management & Calibration | Upload plan via CLI, calibrate robot |
-| 6 | Inspection State Machine & CLI | Run full CLI workflow, see state transitions |
-| 7 | Visual Capture Pipeline | Run inspection, see captured images with poses |
-| 8 | VLM Defect Detection | Run detection on test images, see defect JSON |
-| 9 | Report Generation | Generate PDF report from detection results |
-| 10 | Integration Testing | Full end-to-end inspection in simulation |
-| 11 | Docker Deployment | `docker-compose up` runs on real hardware |
+**Total Stories:** 14
 
 ---
 
-## Story 1: Project Setup & ROS2 Workspace
+## Story 1: Project Setup
 
 As a developer,
-I want the complete project structure with all packages and dependencies configured,
-So that I can build and run the system.
+I want the C++ project structure with build system and dependencies configured,
+So that I can build and develop the system.
 
 **Scope:**
-- Create ROS2 workspace with all 6 packages (g1_bringup, g1_navigation, g1_perception, g1_inspection, g1_safety, g1_interfaces)
-- Define custom messages: InspectionStatus, DefectReport, Notification
-- Define services: StartInspection, PauseInspection, GetStatus
-- Define action: ExecuteInspection
-- Create `scripts/setup.sh` that clones external deps (unitree_sdk2_python, unitree_ros2, cyclonedds, unitree_mujoco)
-- Configure CycloneDDS as default middleware
-- Create config file templates (nav2_params.yaml, slam_params.yaml, robot_params.yaml)
+- Create CMakeLists.txt with all targets
+- Set up directory structure (src/, sim/, test/, config/)
+- Configure unitree_sdk2 as external dependency
+- Add OpenCV, curl, nlohmann/json dependencies
+- Create basic types (Point2D, Pose2D, Velocity)
+- Create placeholder main.cpp that compiles
 
 **Acceptance Criteria:**
-- `scripts/setup.sh` runs successfully on fresh Ubuntu 22.04 + ROS2 Humble
-- `colcon build` completes without errors
-- All interfaces importable: `from g1_interfaces.msg import InspectionStatus`
-- External deps cloned to `external/` (gitignored)
+- `cmake ..` configures without errors
+- `make` builds successfully
+- `./g1_inspector --help` shows usage
+- All dependencies found and linked
 
-**Technical Notes:**
-- Pin dependency commits for reproducibility
-- Use ament_python for packages, ament_cmake for interfaces
-- All nodes use `/g1/` namespace
+**Verification:**
+```bash
+mkdir build && cd build
+cmake ..
+make -j
+./g1_inspector --help
+# Should show: "G1 Inspector v1.0 - Usage: ..."
+```
 
 **Prerequisites:** None
 
-**🧪 Runnable Verification:**
-```bash
-# 1. Run setup (one time)
-./scripts/setup.sh
-
-# 2. Build workspace
-cd ~/unitree-g1-robot
-colcon build
-
-# 3. Source and verify interfaces
-source install/setup.bash
-python3 -c "from g1_interfaces.msg import InspectionStatus; print('✅ Interfaces working')"
-python3 -c "from g1_interfaces.srv import StartInspection; print('✅ Services working')"
-
-# 4. List packages
-ros2 pkg list | grep g1_
-# Should show: g1_bringup, g1_navigation, g1_perception, g1_inspection, g1_safety, g1_interfaces
-```
-
-**Definition of Done:** All verification commands pass. Developer can import interfaces in Python.
-
 ---
 
-## Story 2: Simulation Environment
+## Story 2: Navigation Core
 
-As a developer,
-I want a MuJoCo simulation with fake locomotion,
-So that I can test navigation and perception without hardware.
+As the robot,
+I want path planning and obstacle avoidance algorithms,
+So that I can navigate autonomously.
 
 **Scope:**
-- Set up MuJoCo with G1 robot model (from unitree_mujoco)
-- Implement `SimLocomotionController` - teleport-based fake walking
-- Create simulated sensor publishers matching real topics:
-  - `/g1/camera/rgb`, `/g1/camera/depth` (simulated images)
-  - `/g1/lidar/points` (simulated point cloud)
-  - `/g1/imu/data` (simulated IMU)
-- Create `sim_launch.py` that starts simulation + RViz
-- Simulated environment with walls/obstacles for testing
-- Basic teleop node for manual control testing
+- Implement `Planner` class with A* algorithm
+- Implement `Costmap` class (2D occupancy grid)
+- Implement `PathFollower` class (velocity from path)
+- Define `ILocomotion` interface for abstraction
+- Unit tests for A* correctness
 
 **Acceptance Criteria:**
-- `ros2 launch g1_bringup sim_launch.py` opens MuJoCo + RViz
-- Robot responds to `/g1/cmd_vel` commands (teleports)
-- All sensor topics publish at expected rates
-- Can visualize robot and sensors in RViz
-- Teleop keyboard control moves robot in simulation
+- A* finds shortest path around obstacles
+- Costmap updates from simulated scan data
+- PathFollower produces smooth velocity commands
+- Unit tests pass
 
-**Technical Notes:**
-- Fake locomotion integrates velocity over time, sets base pose directly
-- Same topic names as real robot for code compatibility
-- Simple indoor environment sufficient for MVP testing
+**Verification:**
+```bash
+./build/test_navigation
+# All tests pass
+
+# Manual verification with NavSim (Story 3)
+```
 
 **Prerequisites:** Story 1
 
-**🧪 Runnable Verification:**
-```bash
-# Terminal 1: Launch simulation
-ros2 launch g1_bringup sim_launch.py
-
-# Terminal 2: Check topics are publishing
-ros2 topic list | grep g1
-# Should see: /g1/cmd_vel, /g1/camera/rgb, /g1/lidar/points, etc.
-
-ros2 topic hz /g1/camera/rgb
-# Should show ~1 Hz
-
-ros2 topic hz /g1/lidar/points
-# Should show ~10 Hz
-
-# Terminal 3: Teleop the robot
-ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/g1/cmd_vel
-# Use keyboard to move robot, verify it moves in RViz
-```
-
-**Definition of Done:** Simulation launches, robot visible in RViz, teleop moves robot, sensor topics publishing.
-
 ---
 
-## Story 2.5: Hardware Connectivity - Hello World
+## Story 3: Navigation Simulation (NavSim)
 
 As a developer,
-I want to connect to the real G1 robot and command a simple motion,
-So that I validate hardware integration before building navigation on top of it.
+I want a 2D navigation simulation,
+So that I can test navigation without hardware.
 
 **Scope:**
-- Connect to real G1 via Unitree SDK2 Python
-- Command a simple gesture (arm wave, head nod, or standing pose shift)
-- Read back live sensor data (IMU, battery level, joint states)
-- Verify CycloneDDS communication on robot network (192.168.123.x)
-- Optional: teleop the real robot briefly with keyboard
+- Implement `NavSim` class:
+  - Load map from PNG (black=obstacle, white=free)
+  - Robot as 2D point with pose (x, y, theta)
+  - `applyVelocity()` integrates velocity to update pose
+  - `simulateLidar()` raycasts to generate scan
+  - `checkCollision()` tests if robot in obstacle
+- Implement `SimLocomotion` (implements ILocomotion)
+- Implement `SimSensorSource` (implements ISensorSource)
+- Create `nav_sim` executable
+- Output: trajectory.png, metrics.json, nav.log
 
 **Acceptance Criteria:**
-- Script connects to robot without errors
-- Robot executes commanded motion
-- Sensor data streams back to console
-- Developer can teleop real robot same as sim
+- NavSim loads test map
+- Robot navigates from start to goal
+- No collisions occur
+- PNG shows trajectory, JSON shows metrics
 
-**Technical Notes:**
-- Use unitree_sdk2_python LocoClient for locomotion commands
-- Robot IP: 192.168.123.164 (configurable)
-- Ensure CycloneDDS domain ID matches robot
-- Keep motion commands conservative for safety
+**Verification:**
+```bash
+./build/nav_sim --map test_data/office.png --start 1,1,0 --goal 8,5 --output outputs/
+
+# Check outputs
+cat outputs/metrics.json
+# {"goal_reached": true, "path_length": 12.3, "collisions": 0, "time_s": 4.2}
+
+ls outputs/
+# trajectory.png  metrics.json  nav.log
+```
 
 **Prerequisites:** Story 2
 
-**🧪 Runnable Verification:**
-```bash
-# 1. Connect to robot network
-ping 192.168.123.164
-
-# 2. Run hello world script
-python3 scripts/hello_world_g1.py
-# Output: "Connected to G1. Battery: 85%. Commanding wave..."
-# Robot physically waves arm or performs simple gesture
-
-# 3. Read live sensor data
-python3 scripts/read_g1_sensors.py
-# Output: IMU orientation, joint states, battery level
-
-# 4. Teleop real robot (optional but recommended)
-ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/g1/cmd_vel
-# Robot responds to keyboard commands - walk forward, turn, etc.
-
-# 5. Verify ROS2 topics from real robot
-ros2 topic list | grep g1
-ros2 topic echo /g1/imu/data --once
-```
-
-**Definition of Done:** Real G1 robot responds to commands, sensor data received on dev machine. Hardware integration validated before building navigation stack.
-
 ---
 
-## Story 2.6: Sensor Hello World - Multi-Sensor Validation
-
-As a developer,
-I want to capture data from all G1 sensors (camera, LiDAR, microphone) via a single CLI tool,
-So that I validate sensor hardware integration before building perception pipelines on top of it.
-
-**Scope:**
-- Create unified `sensor_hello_world.py` script with CLI flags
-- Capture RGB + depth images from RealSense D435
-- Capture point cloud from Livox MID-360 LiDAR
-- Record audio from 4-mic array
-- Optional RViz visualization for point cloud and camera feeds
-- Save all captured data with timestamps
-- Create standalone `estop_g1.py` emergency stop script
-
-**Acceptance Criteria:**
-- `--camera` captures RGB + depth image, saves to file, displays dimensions
-- `--lidar` captures point cloud, saves to PCD file, displays point count
-- `--audio` records from microphone array, saves to WAV file, displays duration
-- `--rviz` launches RViz to visualize point cloud and camera feeds
-- `--all` runs all sensor tests
-- All sensor data saved with timestamps for verification
-- E-stop script immediately halts robot motion (<500ms) and puts robot in safe damp mode
-
-**Technical Notes:**
-- Uses pyrealsense2 or realsense2_camera ROS2 driver
-- Uses livox_ros2_driver for LiDAR
-- Uses sounddevice/soundfile for audio recording
-- Same CLI pattern as existing hello_world_g1.py (network interface argument)
-- Graceful handling of disconnected sensors
-
-**Prerequisites:** Story 2.5
-
-**🧪 Runnable Verification:**
-```bash
-# 1. Connect to robot network
-ping 192.168.123.164
-
-# 2. Test camera capture
-python3 scripts/sensor_hello_world.py eth0 --camera
-# Output: RGB 640x480, Depth 640x480, files saved
-
-# 3. Test LiDAR capture
-python3 scripts/sensor_hello_world.py eth0 --lidar
-# Output: 45,230 points captured, PCD file saved
-
-# 4. Test audio capture
-python3 scripts/sensor_hello_world.py eth0 --audio --duration 5
-# Output: 5.0s recorded, WAV file saved
-
-# 5. Test all sensors with RViz visualization
-python3 scripts/sensor_hello_world.py eth0 --all --rviz
-# Opens RViz showing point cloud and camera feeds
-
-# 6. Verify saved files
-ls sensor_captures/*/
-# Should show: camera_rgb.png, camera_depth.png, lidar_pointcloud.pcd, audio_recording.wav
-
-# 7. Test E-stop (ALWAYS test this first before other hardware tests!)
-python3 scripts/estop_g1.py eth0
-# Robot immediately stops and goes limp (damp mode)
-```
-
-**Definition of Done:** All sensors captured via CLI flags, data saved to files, point cloud viewable in RViz. E-stop tested and working. Sensor hardware validated before building perception pipelines.
-
----
-
-## Story 3: Navigation Stack Integration
+## Story 4: SLAM Core
 
 As the robot,
-I want Nav2 and slam_toolbox integrated with the Unitree SDK,
-So that I can autonomously navigate and avoid obstacles.
+I want to build a map from LiDAR scans,
+So that I can localize and plan paths.
 
 **Scope:**
-- Implement `Nav2LocoBridge` node - subscribes `/g1/cmd_vel`, calls `LocoClient.SetVelocity()`
-- Configure slam_toolbox for 2D SLAM from LiDAR
-- Configure Nav2 with:
-  - Global planner (NavFn or Smac)
-  - Local planner (DWB)
-  - Costmap with obstacle + inflation layers
-  - Recovery behaviors
-- Fuse D435i depth into costmap for low obstacle detection
-- Implement path replanning when obstacles detected
-- Track coverage percentage based on visited cells
+- Implement `GridMapper` class:
+  - Occupancy grid with log-odds updates
+  - Bresenham ray tracing for free space
+  - `update(pose, scan)` integrates new data
+  - `saveMap(path)` exports as PNG
+- Implement `Localizer` class (optional, odometry-only for MVP)
+- Define `ISensorSource` interface
+- Unit tests for map building
 
 **Acceptance Criteria:**
-- Robot builds map while navigating (slam_toolbox)
-- `ros2 action send_goal /navigate_to_pose` moves robot to goal
-- Robot avoids obstacles within 500ms of detection (NFR1)
-- Path replans when blocked (FR15, FR16)
-- Coverage percentage published to `/g1/inspection/coverage`
+- GridMapper builds reasonable map from scans
+- Map matches ground truth environment
+- Unit tests pass
 
-**Technical Notes:**
-- Nav2 params in `config/nav2_params.yaml`
-- SLAM params in `config/slam_params.yaml`
-- Bridge handles velocity limits (0.5 m/s linear, 1.0 rad/s angular)
-- cmd_vel timeout for safety stop
-
-**Prerequisites:** Story 2
-
-**🧪 Runnable Verification:**
+**Verification:**
 ```bash
-# Terminal 1: Launch simulation with navigation
-ros2 launch g1_bringup sim_nav_launch.py
+./build/test_slam
+# All tests pass
 
-# Terminal 2: Verify SLAM is building map
-ros2 topic echo /map --once
-# Should see occupancy grid data
-
-# Terminal 3: Send navigation goal via CLI
-ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
-  "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 2.0, y: 1.0}}}}"
-# Robot should navigate to goal in RViz
-
-# Terminal 4: Check coverage
-ros2 topic echo /g1/inspection/coverage --once
-# Should see coverage percentage
-
-# Manual test: Place obstacle in path, verify replanning
+./build/slam_sim --map test_data/office.png --output outputs/
+cat outputs/accuracy.json
+# {"accuracy": 0.92, "cells_mapped": 4523}
 ```
-
-**Definition of Done:** Robot autonomously navigates to goal, builds map, avoids obstacles, reports coverage.
-
----
-
-## Story 4: Localization & Safety Systems
-
-As an operator,
-I want the robot to monitor its safety state and stop when needed,
-So that operation is safe and predictable.
-
-**Scope:**
-- Implement `SafetyNode`:
-  - E-stop service `/g1/emergency_stop` - immediate halt <500ms
-  - Collision proximity monitoring from costmap
-  - Fall detection from IMU
-  - Publishes `/g1/safety/status`
-- Implement `BatteryMonitor`:
-  - Read battery from SDK (simulated in sim)
-  - Warning at 20%, RETURNING_HOME at 10%
-  - Battery level in status messages
-- Implement localization confidence monitoring:
-  - Monitor slam_toolbox covariance/match quality
-  - Warn on low confidence, stop on failure
-  - Publish `/g1/localization/confidence`
-- Graceful degradation - nodes publish errors, don't crash
-
-**Acceptance Criteria:**
-- E-stop stops robot within 500ms (NFR11)
-- Low battery triggers return behavior (NFR14)
-- Localization failure stops robot and notifies (FR21, FR22)
-- Safety status visible in RViz and CLI
-
-**Technical Notes:**
-- Safety node runs at high priority
-- Can override navigation commands
-- All thresholds configurable in `config/safety_params.yaml`
 
 **Prerequisites:** Story 3
 
-**🧪 Runnable Verification:**
-```bash
-# Terminal 1: Launch full system
-ros2 launch g1_bringup sim_nav_launch.py
-
-# Terminal 2: Start robot navigating
-ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
-  "{pose: {header: {frame_id: 'map'}, pose: {position: {x: 5.0, y: 3.0}}}}"
-
-# Terminal 3: Trigger E-stop while moving
-ros2 service call /g1/emergency_stop std_srvs/srv/Trigger
-# Robot should stop immediately
-
-# Terminal 4: Check safety status
-ros2 topic echo /g1/safety/status --once
-# Should show EMERGENCY_STOP state
-
-# Terminal 5: Simulate low battery (set param or publish test message)
-ros2 param set /g1/battery_monitor simulated_battery_level 8.0
-# Robot should start returning home
-
-# Check localization confidence
-ros2 topic echo /g1/localization/confidence --once
-```
-
-**Definition of Done:** E-stop works instantly, battery triggers return, localization monitoring active, all observable via topics.
-
 ---
 
-## Story 5: Plan Management & Calibration
+## Story 5: Sensor Interface
 
-As an operator,
-I want to upload construction plans and calibrate the robot's starting position,
-So that the robot knows the expected layout and where it is.
+As the system,
+I want to receive sensor data from the robot via SDK,
+So that navigation and SLAM have real data.
 
 **Scope:**
-- Implement `PlanManager`:
-  - Upload PDF/PNG plans via CLI
-  - Store in `/data/plans/` with UUID
-  - Basic parsing (room boundaries, scale if available)
-  - Prepare plan images for VLM context
-- Implement calibration flow:
-  - Operator specifies starting position on plan
-  - Set initial pose for slam_toolbox via `/initialpose`
-  - Store plan-to-robot coordinate transform
-  - Verify localization succeeds from position
-- Plan metadata includes trade type (finishes for MVP)
+- Implement `SensorManager` class:
+  - Initialize SDK channel subscribers
+  - Subscribe to LiDAR topic (`rt/utlidar/cloud`)
+  - Subscribe to IMU topic (`rt/lowstate`)
+  - Thread-safe data access with mutex or lock-free buffer
+  - Callbacks for new data
+- Implement `RealSensorSource` (implements ISensorSource)
+- Parse SDK message types to internal types
 
 **Acceptance Criteria:**
-- `g1-inspect upload --plan floor.pdf` stores plan, returns ID
-- `g1-inspect calibrate --plan <id> --position "x,y,theta"` initializes localization
-- Plan persists across restarts (NFR21)
-- Calibration failure provides clear error message
+- SensorManager connects to SDK topics
+- LiDAR data parsed correctly
+- IMU data parsed correctly
+- Data accessible from main thread
 
-**Technical Notes:**
-- PDF conversion via pdf2image
-- Plan parsing is basic - VLM does heavy lifting during detection
-- Coordinate transform stored for capture-to-plan correlation
+**Verification:**
+```bash
+# Requires connection to robot or SDK mock
+./build/g1_inspector --robot 192.168.123.164 --test-sensors
+
+# Output:
+# [SENSORS] LiDAR: 3421 points received
+# [SENSORS] IMU: orientation (0.01, 0.02, 0.00)
+# [SENSORS] Battery: 85%
+```
 
 **Prerequisites:** Story 4
 
-**🧪 Runnable Verification:**
-```bash
-# Terminal 1: Launch system
-ros2 launch g1_bringup sim_nav_launch.py
-
-# Terminal 2: Upload a test plan
-./scripts/g1_inspect.py upload --plan test_data/sample_floor_plan.png
-# Should output: "Plan uploaded: <uuid>"
-
-# List plans
-./scripts/g1_inspect.py plans list
-# Should show uploaded plan
-
-# Calibrate robot position
-./scripts/g1_inspect.py calibrate --plan <uuid> --position "0,0,0"
-# Should output: "Calibration successful. Robot localized."
-
-# Verify initial pose was set (check in RViz - robot should be at origin)
-ros2 topic echo /initialpose --once
-```
-
-**Definition of Done:** Can upload plan via CLI, calibrate robot, see robot positioned correctly in RViz.
-
 ---
 
-## Story 6: Inspection State Machine & CLI
+## Story 6: Locomotion Interface
 
-As an operator,
-I want to control inspections via CLI and see real-time status,
-So that I can manage the robot easily.
+As the system,
+I want to send velocity commands to the robot via SDK,
+So that navigation can control movement.
 
 **Scope:**
-- Implement `InspectionStateMachine`:
-  - States: IDLE, CALIBRATING, INSPECTING, PAUSED, BLOCKED, WAITING_OPERATOR, COMPLETE, EMERGENCY_STOP, RETURNING_HOME
-  - Transitions per Architecture state diagram
-  - Publishes `/g1/inspection/status` (state, battery, location, completion %)
-- Implement CLI (`scripts/g1_inspect.py`):
-  - `upload`, `calibrate`, `start`, `pause`, `resume`, `stop`, `estop`, `status`, `viz`
-  - Clear feedback for all commands
-  - `--help` documentation
-- Implement notification system:
-  - Publish to `/g1/notifications` on key events
-  - Route blocked, localization failed, complete, low battery
-- RViz config showing status, map, path, camera feed
+- Implement `LocoController` class:
+  - Initialize SDK LocoClient
+  - `setVelocity(vx, vy, omega)` sends command
+  - `stop()`, `standUp()`, `sitDown()`
+  - `emergencyStop()` immediate halt
+  - Connection status monitoring
+- Implement `RealLocomotion` (implements ILocomotion)
+- Safety limits on velocity commands
 
 **Acceptance Criteria:**
-- All CLI commands work and provide feedback
-- State transitions match Architecture diagram
-- Status shows: state, battery %, location, completion %, elapsed time
-- Notifications appear in CLI output and RViz
-- `g1-inspect viz` opens configured RViz
+- LocoController connects to robot
+- Velocity commands sent successfully
+- Emergency stop works
+- Velocity limits enforced
 
-**Technical Notes:**
-- CLI wraps ROS2 service calls (Click or argparse)
-- State machine can be simple Python, doesn't need library
-- Log all state transitions with structured format
+**Verification:**
+```bash
+# Requires real robot
+./build/g1_inspector --robot 192.168.123.164 --test-loco
+
+# Output:
+# [LOCO] Connected to robot
+# [LOCO] Standing up... OK
+# [LOCO] Moving forward 0.2 m/s for 2s... OK
+# [LOCO] Stopping... OK
+```
 
 **Prerequisites:** Story 5
 
-**🧪 Runnable Verification:**
-```bash
-# Terminal 1: Launch system
-ros2 launch g1_bringup sim_nav_launch.py
-
-# Terminal 2: Full CLI workflow
-./scripts/g1_inspect.py status
-# Should show: IDLE
-
-./scripts/g1_inspect.py upload --plan test_data/sample_floor_plan.png
-# Note the plan ID
-
-./scripts/g1_inspect.py calibrate --plan <id> --position "0,0,0"
-# Should show: Calibration successful
-
-./scripts/g1_inspect.py start --plan <id>
-# Should show: Inspection started, state: INSPECTING
-
-./scripts/g1_inspect.py status
-# Should show: INSPECTING, battery %, location, completion %
-
-./scripts/g1_inspect.py pause
-# Should show: Inspection paused
-
-./scripts/g1_inspect.py status
-# Should show: PAUSED
-
-./scripts/g1_inspect.py resume
-# Should show: Inspection resumed
-
-./scripts/g1_inspect.py stop
-# Should show: Inspection stopped, state: IDLE
-
-# Test E-stop
-./scripts/g1_inspect.py start --plan <id>
-./scripts/g1_inspect.py estop
-# Should immediately stop
-
-# Open RViz
-./scripts/g1_inspect.py viz
-```
-
-**Definition of Done:** Complete CLI workflow works - upload, calibrate, start, pause, resume, stop. Status updates in real-time.
-
 ---
 
-## Story 7: Visual Capture Pipeline
+## Story 7: Hardware Hello World
 
-As the robot,
-I want to capture and store geotagged images during inspection,
-So that visual data is available for defect detection.
+As a developer,
+I want to verify full hardware connectivity,
+So that I confirm the robot responds to commands.
 
 **Scope:**
-- Implement `ImageCapture` node:
-  - Capture RGB at 1fps during INSPECTING state
-  - Capture aligned depth alongside RGB
-  - Tag each image with: timestamp, robot pose, camera orientation, unique ID
-  - Save to ROS2 bag + image files
-- LiDAR point cloud continuous capture to bag
-- Implement `PlanCorrelator`:
-  - Transform image pose to plan coordinates
-  - Calculate camera FOV coverage area
-  - Store correlation metadata with each image
-- Track which plan areas have been photographed
+- Create integration test that:
+  - Connects to robot
+  - Reads battery level
+  - Commands stand up
+  - Commands simple motion (forward 0.5m)
+  - Commands stop
+  - Reads LiDAR scan
+- All using real SDK, real robot
 
 **Acceptance Criteria:**
-- Images captured at 1fps during inspection (NFR3)
-- Each image has pose metadata
-- Depth aligned and saved with RGB
-- Can query "images covering plan area X"
-- ROS2 bag contains all sensor data for replay
+- Robot physically responds to commands
+- Sensor data streams back
+- No crashes or errors
+- Battery level displayed
 
-**Technical Notes:**
-- Use realsense2_camera for D435i (already handles alignment)
-- Use livox_ros2_driver for MID-360
-- Resolution: 640x480 sufficient for MVP
-- Correlation uses calibration transform from Story 5
+**Verification:**
+```bash
+# Robot must be powered on, connected via ethernet
+./scripts/check_g1_network.sh  # Verify connectivity first
+
+./build/g1_inspector --robot 192.168.123.164 --hello-world
+
+# Robot should:
+# 1. Stand up
+# 2. Walk forward ~0.5m
+# 3. Stop
+# 4. Console shows sensor data
+```
 
 **Prerequisites:** Story 6
 
-**🧪 Runnable Verification:**
-```bash
-# Terminal 1: Launch system
-ros2 launch g1_bringup sim_nav_launch.py
-
-# Terminal 2: Start a short inspection
-./scripts/g1_inspect.py upload --plan test_data/sample_floor_plan.png
-./scripts/g1_inspect.py calibrate --plan <id> --position "0,0,0"
-./scripts/g1_inspect.py start --plan <id>
-
-# Let it run for 30 seconds, then stop
-sleep 30
-./scripts/g1_inspect.py stop
-
-# Terminal 3: Check captured images
-ls /data/inspections/<inspection_id>/images/
-# Should see: img_001.jpg, img_002.jpg, etc.
-
-# Check image metadata
-cat /data/inspections/<inspection_id>/images/img_001.json
-# Should see: timestamp, pose (x, y, theta), plan_coordinates
-
-# Check ROS2 bag was recorded
-ros2 bag info /data/inspections/<inspection_id>/rosbag/
-# Should show topics: /g1/camera/rgb, /g1/camera/depth, /g1/lidar/points
-
-# Replay bag and visualize
-ros2 bag play /data/inspections/<inspection_id>/rosbag/
-```
-
-**Definition of Done:** Inspection captures images with pose metadata, viewable in filesystem and via bag replay.
-
 ---
 
-## Story 8: VLM Defect Detection
+## Story 8: Safety System
 
-As the system,
-I want to analyze captured images via VLM API to detect defects,
-So that issues are identified automatically.
+As an operator,
+I want safety monitoring and emergency stop,
+So that operation is safe.
 
 **Scope:**
-- Implement `DefectDetector` (runs on offload server):
-  - Send images + plan context to VLM API (GPT-4V or Claude)
-  - Structured prompt requesting: defect type, description, location in image, confidence
-  - Parse structured JSON response
-  - Support multiple VLM providers via config
-- Detect two types:
-  - Location errors: item in wrong position vs plan
-  - Quality issues: scratches, damage, defects on finishes
-- Implement defect localization:
-  - Use image pose + depth to estimate world coordinates
-  - Map to plan coordinates
-  - Target: within 6 inches
-- Generate annotated images with bounding boxes
-- Assign confidence scores, filter low confidence
+- Implement `SafetyMonitor` class:
+  - E-stop service (immediate halt <500ms)
+  - Battery monitoring (warn 20%, return 10%)
+  - Collision proximity check from costmap
+  - Localization confidence monitoring
+  - Publishes safety state
+- Watchdog for command timeout
+- Graceful degradation on sensor failure
 
 **Acceptance Criteria:**
-- Images sent to VLM with plan context
-- Defects returned with type, description, location, confidence (FR28-33)
-- Defects localized to plan coordinates (FR31)
-- Annotated images generated for evidence (FR32)
-- API errors handled gracefully (retry, log)
+- E-stop halts robot within 500ms
+- Low battery triggers warning/return
+- Collision proximity detected
+- Safety state queryable
 
-**Technical Notes:**
-- VLM prompt template per Architecture spec
-- API key via environment variable
-- Run on server, not Jetson (compute offload)
-- Batch images for efficiency
+**Verification:**
+```bash
+./build/g1_inspector --robot 192.168.123.164 --test-safety
+
+# Tests:
+# [SAFETY] E-stop test: PASS (320ms response)
+# [SAFETY] Battery monitor: 85% (OK)
+# [SAFETY] Collision check: No obstacles
+# [SAFETY] All safety checks passed
+```
 
 **Prerequisites:** Story 7
 
-**🧪 Runnable Verification:**
-```bash
-# Test with sample images (no full inspection needed)
-# Terminal 1: Run defect detection on test images
-export OPENAI_API_KEY="your-key-here"  # or ANTHROPIC_API_KEY
-
-./scripts/detect_defects.py \
-  --images test_data/sample_inspection_images/ \
-  --plan test_data/sample_floor_plan.png \
-  --output /tmp/defect_results/
-
-# Check results
-cat /tmp/defect_results/defects.json
-# Should see:
-# [
-#   {
-#     "id": "def_001",
-#     "type": "quality_issue",
-#     "description": "Scratch on tile surface",
-#     "image": "img_003.jpg",
-#     "location_in_image": {"x": 320, "y": 240},
-#     "plan_coordinates": {"x": 2.5, "y": 1.2},
-#     "confidence": 0.85
-#   },
-#   ...
-# ]
-
-# Check annotated images
-ls /tmp/defect_results/annotated/
-# Should see: img_003_annotated.jpg with bounding box
-
-# Test with actual inspection data
-./scripts/g1_inspect.py detect --inspection <inspection_id>
-# Should process all captured images and output defects
-```
-
-**Definition of Done:** VLM analyzes images, returns structured defect JSON with locations and confidence, annotated images generated.
-
 ---
 
-## Story 9: Report Generation
+## Story 9: State Machine + CLI
 
 As an operator,
-I want PDF inspection reports with photos and punch lists,
-So that I can share findings with crews and stakeholders.
+I want to control inspections via CLI,
+So that I can manage the robot easily.
 
 **Scope:**
-- Implement `ReportGenerator` (runs on offload server):
-  - Generate PDF with: summary, issue list, plan overlay, photos, punch list
-  - Plan overlay: markers at defect locations, color-coded by type, numbered
-  - Photo integration: thumbnails inline, annotated images
-  - Punch list: sortable table with location, type, description, photo ref, status
-  - Also export punch list as CSV
-- Report saved to `/data/reports/<inspection_id>/`
-- Report metadata JSON alongside PDF
-- CLI commands: `g1-inspect reports list`, `g1-inspect reports get <id>`
+- Implement `StateMachine` class:
+  - States: IDLE, CALIBRATING, INSPECTING, PAUSED, BLOCKED, COMPLETE, EMERGENCY_STOP, RETURNING_HOME
+  - Transitions per architecture diagram
+  - Status publishing (state, battery, location, completion %)
+- Implement CLI commands:
+  - `status`, `start`, `pause`, `resume`, `stop`, `estop`
+  - `upload --plan <file>`, `calibrate --position x,y,theta`
+  - `report`, `help`
+- Interactive mode and single-command mode
 
 **Acceptance Criteria:**
-- Report generated within 30 minutes of inspection complete (NFR5)
-- PDF includes all required sections (FR34-40)
-- Plan overlay shows defect locations accurately (FR36)
-- Punch list categorized by type (FR38)
-- Reports accessible via CLI and filesystem
-- Historical reports retained (NFR22)
+- All CLI commands work
+- State transitions correct
+- Status shows real-time info
+- E-stop always available
 
-**Technical Notes:**
-- Use ReportLab for PDF generation
-- Compress images to keep PDF <50MB
-- Template-based for consistency
-- Naming: `inspection_<date>_<plan_name>.pdf`
+**Verification:**
+```bash
+./build/g1_inspector --robot 192.168.123.164
+
+> status
+State: IDLE
+Battery: 85%
+Location: (0.0, 0.0, 0.0)
+
+> upload --plan test_data/floor.png
+Plan uploaded: plan_001
+
+> calibrate --position 0,0,0
+Calibration complete
+
+> start
+Inspection started
+State: INSPECTING
+
+> status
+State: INSPECTING
+Battery: 84%
+Location: (1.2, 0.5, 0.1)
+Completion: 15%
+
+> pause
+Inspection paused
+
+> resume
+Inspection resumed
+
+> stop
+Inspection stopped
+State: IDLE
+```
 
 **Prerequisites:** Story 8
 
-**🧪 Runnable Verification:**
-```bash
-# Generate report from detection results
-./scripts/g1_inspect.py report --inspection <inspection_id>
-# Should output: "Report generated: /data/reports/<inspection_id>/inspection_2025-12-04_floor_plan.pdf"
-
-# Or generate from test defect data
-./scripts/generate_report.py \
-  --defects test_data/sample_defects.json \
-  --plan test_data/sample_floor_plan.png \
-  --output /tmp/test_report.pdf
-
-# View the PDF
-xdg-open /tmp/test_report.pdf
-# Or: open /tmp/test_report.pdf (macOS)
-
-# Verify PDF contents:
-# - Cover page with inspection summary
-# - Plan overlay with numbered markers
-# - Defect list with photos
-# - Punch list table
-
-# Check CSV export
-cat /data/reports/<inspection_id>/punch_list.csv
-# Should be importable to spreadsheet
-
-# List reports via CLI
-./scripts/g1_inspect.py reports list
-# Should show available reports
-
-./scripts/g1_inspect.py reports get <id>
-# Should copy report to current directory
-```
-
-**Definition of Done:** PDF report generated with all sections, viewable and shareable. Punch list exportable as CSV.
-
 ---
 
-## Story 10: Integration Testing & Hardening
+## Story 10: Visual Capture
 
-As a developer,
-I want end-to-end testing and edge case handling,
-So that the system works reliably in real conditions.
+As the robot,
+I want to capture geotagged images during inspection,
+So that defects can be detected from photos.
 
 **Scope:**
-- Create test scenarios:
-  - Happy path: full inspection cycle in simulation
-  - Obstacle blocking: path replanning and notification
-  - Localization degradation: warning and stop behavior
-  - Low battery: return home behavior
-  - E-stop: immediate halt
-  - WiFi disconnect: pause and resume on reconnect
-- Add error handling throughout:
-  - Sensor failures: log and notify
-  - API failures: retry with backoff
-  - Unexpected states: safe fallback
-- Performance validation:
-  - 500ms obstacle response (NFR1)
-  - 10Hz localization (NFR2)
-  - 95% route completion (NFR6)
-- Add structured logging throughout (per Architecture conventions)
+- Implement `ImageCapture` class:
+  - Capture RGB at 1fps during INSPECTING
+  - Tag with timestamp, robot pose, camera orientation
+  - Save to disk with metadata JSON
+  - Aligned depth capture (optional for MVP)
+- Implement `PlanCorrelator`:
+  - Transform pose to plan coordinates
+  - Calculate FOV coverage
+- Storage management (directory per inspection)
 
 **Acceptance Criteria:**
-- All test scenarios pass in simulation
-- Error conditions handled gracefully (no crashes)
-- Performance metrics meet NFRs
-- Logs are structured and filterable by context tag
+- Images captured at 1fps
+- Each image has pose metadata
+- Images saved to inspection directory
+- Coverage tracked
 
-**Technical Notes:**
-- pytest for unit tests, launch_testing for integration
-- Test with simulated sensor noise and failures
-- Document known limitations
+**Verification:**
+```bash
+# Run short inspection
+./build/g1_inspector --robot 192.168.123.164
+> start
+# Wait 30 seconds
+> stop
+
+# Check captures
+ls data/inspections/insp_001/images/
+# img_0001.jpg  img_0001.json  img_0002.jpg  img_0002.json  ...
+
+cat data/inspections/insp_001/images/img_0001.json
+# {"timestamp": 1701705600, "pose": {"x": 1.2, "y": 0.5, "theta": 0.1}, ...}
+```
 
 **Prerequisites:** Story 9
 
-**🧪 Runnable Verification:**
-```bash
-# Run unit tests
-pytest src/g1_*/test/ -v
-# All tests should pass
-
-# Run integration test suite
-./scripts/run_integration_tests.sh
-# Runs all scenarios in simulation
-
-# Manual end-to-end test
-ros2 launch g1_bringup sim_nav_launch.py &
-
-# Full inspection cycle
-./scripts/g1_inspect.py upload --plan test_data/sample_floor_plan.png
-./scripts/g1_inspect.py calibrate --plan <id> --position "0,0,0"
-./scripts/g1_inspect.py start --plan <id>
-
-# Watch status until complete
-watch -n 2 './scripts/g1_inspect.py status'
-# Wait for COMPLETE state
-
-# Generate report
-./scripts/g1_inspect.py report --inspection <id>
-
-# View report
-xdg-open /data/reports/<id>/*.pdf
-
-# Test edge cases manually:
-# 1. Start inspection, then trigger e-stop
-# 2. Start inspection, simulate low battery
-# 3. Start inspection, block path (in sim), verify notification
-# 4. Start inspection, kill VLM API (timeout handling)
-
-# Check logs are structured
-grep "\[NAVIGATION\]" /var/log/g1_inspector/latest.log
-grep "\[SAFETY\]" /var/log/g1_inspector/latest.log
-```
-
-**Definition of Done:** Full inspection cycle works end-to-end in simulation. All edge cases handled gracefully. Test suite passes.
-
 ---
 
-## Story 11: Docker Deployment
+## Story 11: VLM Defect Detection
 
-As a developer,
-I want Docker images for Jetson and server deployment,
-So that I can deploy reproducibly to robot hardware.
+As the system,
+I want to analyze images via VLM API,
+So that defects are detected automatically.
 
 **Scope:**
-- Create `Dockerfile.jetson`:
-  - Base: NVIDIA L4T + ROS2 Humble
-  - All project packages built
-  - External dependencies installed
-  - Entry point for robot_launch.py
-- Create `Dockerfile.server`:
-  - Offload server for VLM + report generation
-  - Python environment with API clients
-- Create `docker-compose.yaml`:
-  - Orchestrate robot + server containers
-  - Network configuration
-  - Volume mounts for data and config
-- Create `.env.example` documenting all required variables
-- Create `robot_launch.py` for real hardware (vs sim_launch.py)
+- Implement `VlmClient` class:
+  - HTTP POST to Anthropic/OpenAI API
+  - Base64 encode images
+  - Structured prompt for defect detection
+  - Parse JSON response to Defect structs
+  - Retry with backoff on failure
+- Defect types: location_error, quality_issue
+- Confidence scoring
+- Annotated image generation (bounding boxes)
 
 **Acceptance Criteria:**
-- `docker build` succeeds for both images
-- `docker-compose up` starts full system
-- Robot connects to real Unitree G1 hardware
-- Offload server accessible from robot
-- Config/data persisted via volumes
+- Images sent to VLM API
+- Defects returned with type, description, location, confidence
+- Annotated images generated
+- API errors handled gracefully
 
-**Technical Notes:**
-- Base image: dusty-nv/jetson-containers
-- GPU access configured for Jetson
-- Network: robot at 192.168.123.164, configurable via .env
+**Verification:**
+```bash
+export ANTHROPIC_API_KEY="your-key"
+
+./build/detection_sim --images test_data/defect_samples/ --plan test_data/floor.png --output outputs/
+
+cat outputs/defects.json
+# [
+#   {"id": "def_001", "type": "quality_issue", "description": "Scratch on tile",
+#    "location": {"x": 2.5, "y": 1.2}, "confidence": 0.87},
+#   ...
+# ]
+
+ls outputs/annotated/
+# img_001_annotated.jpg  img_003_annotated.jpg
+```
 
 **Prerequisites:** Story 10
 
-**🧪 Runnable Verification:**
+---
+
+## Story 12: Report Generation
+
+As an operator,
+I want PDF reports with punch lists,
+So that I can share findings with crews.
+
+**Scope:**
+- Implement `ReportGenerator` class:
+  - PDF with: summary, plan overlay, photos, defect list, punch list
+  - Plan overlay with numbered markers at defect locations
+  - Photo thumbnails with annotations
+  - CSV export for punch list
+- Template-based layout
+- Naming: `inspection_<date>_<plan>.pdf`
+
+**Acceptance Criteria:**
+- PDF generated with all sections
+- Plan overlay shows defect markers
+- Punch list in table format
+- CSV export works
+
+**Verification:**
 ```bash
-# Build images (on development machine)
-docker build -f docker/Dockerfile.jetson -t g1-inspector:jetson .
-docker build -f docker/Dockerfile.server -t g1-inspector:server .
+./build/g1_inspector --generate-report --inspection insp_001
 
-# Test locally with docker-compose (simulation mode)
-cp .env.example .env
-# Edit .env with API keys
+# Output:
+# Report generated: data/reports/insp_001/inspection_2025-12-04_floor.pdf
+# Punch list: data/reports/insp_001/punch_list.csv
 
-docker-compose -f docker/docker-compose.dev.yaml up
-# Should start simulation environment in containers
-
-# From host, verify system is running
-curl http://localhost:8080/health  # Server health check
-ros2 topic list  # Should see /g1/* topics
-
-# Run CLI against containerized system
-./scripts/g1_inspect.py status
-# Should show IDLE
-
-# On real Jetson hardware:
-# 1. Copy images to Jetson
-# 2. Connect to robot network (192.168.123.x)
-# 3. Run docker-compose
-
-docker-compose -f docker/docker-compose.robot.yaml up
-# Should connect to real G1 robot
-
-# Verify real robot connection
-./scripts/g1_inspect.py status
-# Should show real battery level from robot
-
-# Run real inspection
-./scripts/g1_inspect.py upload --plan real_site_plan.pdf
-./scripts/g1_inspect.py calibrate --plan <id> --position "0,0,0"
-./scripts/g1_inspect.py start --plan <id>
-# Robot should physically move and inspect
+# Open and verify PDF has all sections
 ```
 
-**Definition of Done:** Docker images build, compose starts system, real robot connection verified.
+**Prerequisites:** Story 11
 
 ---
 
-## FR Coverage Matrix
+## Story 13: Integration Testing
 
-| FR | Requirement | Story |
-|----|-------------|-------|
-| FR1-2 | Upload PDF/PNG plans | 5 |
-| FR3-4 | Parse plans, specify trade | 5 |
-| FR5-6 | Starting position, calibration | 5 |
-| FR7-10 | Start/pause/resume/abort inspection | 6 |
-| FR11 | Real-time status | 6 |
-| FR12 | Autonomous indoor navigation | 3 |
-| FR13 | Traverse stairs | ⬜ Deferred |
-| FR14-17 | Obstacle handling | 3 |
-| FR18 | Route completion tracking | 3 |
-| FR19-20 | Self-localization | 3, 4 |
-| FR21-22 | Localization confidence/failure | 4 |
-| FR23-25 | Capture RGB/depth/LiDAR | 7 |
-| FR26-27 | Interior representation, plan correlation | 7 |
-| FR28-29 | Plan comparison, location errors | 8 |
-| FR30 | Quality issue detection | 8 |
-| FR31-32 | Defect localization, photo evidence | 8 |
-| FR33 | Confidence scores | 8 |
-| FR34-40 | Report generation | 9 |
-| FR41-44 | Operator notifications | 4, 6 |
-| FR45-47 | Blue tape placement | ⬜ Deferred Phase 2 |
+As a developer,
+I want end-to-end testing in simulation,
+So that the full pipeline works before hardware testing.
 
-**Coverage:** 43/47 FRs (4 intentionally deferred: FR13 stairs, FR45-47 blue tape)
+**Scope:**
+- Create integration test scenarios:
+  - Happy path: full inspection cycle in NavSim
+  - Obstacle blocking: path replan
+  - E-stop during inspection
+  - Low battery return
+- Structured logging throughout
+- Performance validation:
+  - <500ms obstacle response
+  - 10Hz navigation loop
+  - 95% route completion
+
+**Acceptance Criteria:**
+- All scenarios pass in simulation
+- Performance metrics meet requirements
+- Logs structured and filterable
+
+**Verification:**
+```bash
+./scripts/run_integration_tests.sh
+
+# Output:
+# [TEST] Happy path: PASS
+# [TEST] Obstacle replan: PASS
+# [TEST] E-stop: PASS
+# [TEST] Low battery: PASS
+# [PERF] Obstacle response: 340ms (< 500ms) PASS
+# [PERF] Nav loop: 12Hz (> 10Hz) PASS
+# All integration tests passed
+```
+
+**Prerequisites:** Story 12
+
+---
+
+## Story 14: Docker Deployment
+
+As a developer,
+I want Docker images for deployment,
+So that I can deploy reproducibly.
+
+**Scope:**
+- Create Dockerfile:
+  - Ubuntu 22.04 base
+  - Build dependencies
+  - Compile project
+  - Minimal runtime image
+- Create docker-compose.yml for development
+- Create .env.example for configuration
+- Volume mounts for data and config
+
+**Acceptance Criteria:**
+- `docker build` succeeds
+- `docker-compose up` starts system
+- Container connects to robot
+- Data persisted via volumes
+
+**Verification:**
+```bash
+cd docker
+docker build -t g1-inspector .
+docker-compose up -d
+
+# From host
+docker exec -it g1-inspector g1_inspector --status
+# State: IDLE
+
+# With real robot
+docker-compose -f docker-compose.robot.yml up
+```
+
+**Prerequisites:** Story 13
+
+---
+
+## Story Dependency Graph
+
+```
+Story 1 (Setup)
+    │
+    ▼
+Story 2 (Nav Core)
+    │
+    ▼
+Story 3 (NavSim) ◄─────────────────────────┐
+    │                                       │
+    ▼                                       │ (uses for testing)
+Story 4 (SLAM)                              │
+    │                                       │
+    ▼                                       │
+Story 5 (Sensors)                           │
+    │                                       │
+    ▼                                       │
+Story 6 (Locomotion)                        │
+    │                                       │
+    ▼                                       │
+Story 7 (Hardware Hello)                    │
+    │                                       │
+    ▼                                       │
+Story 8 (Safety)                            │
+    │                                       │
+    ▼                                       │
+Story 9 (State Machine + CLI)               │
+    │                                       │
+    ▼                                       │
+Story 10 (Visual Capture)                   │
+    │                                       │
+    ▼                                       │
+Story 11 (VLM Detection)                    │
+    │                                       │
+    ▼                                       │
+Story 12 (Report Gen)                       │
+    │                                       │
+    ▼                                       │
+Story 13 (Integration) ─────────────────────┘
+    │
+    ▼
+Story 14 (Docker)
+```
+
+---
+
+## Agentic Development Verification
+
+Each story has verification commands that can be run automatically by Claude Code:
+
+| Story | Verification Method |
+|-------|---------------------|
+| 1 | Build success, binary runs |
+| 2 | Unit tests pass |
+| 3 | NavSim outputs: trajectory.png, metrics.json |
+| 4 | Unit tests pass, slam_sim accuracy |
+| 5 | Sensor data received (requires robot or mock) |
+| 6 | Loco commands sent (requires robot) |
+| 7 | Robot physically moves (requires robot + human) |
+| 8 | Safety tests pass |
+| 9 | CLI commands work |
+| 10 | Images captured with metadata |
+| 11 | VLM returns defects JSON |
+| 12 | PDF generated |
+| 13 | All integration tests pass |
+| 14 | Docker builds and runs |
+
+### Feedback Levels
+
+- **Level 1 (Real-time):** Log stream during sim run
+- **Level 2 (Per-sim):** Analyze outputs after sim
+- **Level 3 (Per-story):** All acceptance criteria checked
+- **Level 4 (Hardware):** Human verifies on real robot
 
 ---
 
@@ -943,43 +680,19 @@ docker-compose -f docker/docker-compose.robot.yaml up
 
 | Metric | Value |
 |--------|-------|
-| **Total Epics** | 1 |
-| **Total Stories** | 13 |
-| **FRs Covered** | 43/43 MVP (100%) |
-| **Deferred** | FR13 (stairs), FR45-47 (blue tape) |
+| **Total Stories** | 14 |
+| **Simulation-testable** | 1-4, 11-13 |
+| **Requires hardware** | 5-10, 14 |
+| **Core navigation** | 2-4 |
+| **SDK integration** | 5-7 |
 
-### Story Sequence
+### Critical Path
 
-| Story | Deliverable | Can Test By Running |
-|-------|-------------|---------------------|
-| 1 | Workspace | `colcon build` |
-| 2 | Simulation | `ros2 launch sim_launch.py` + teleop |
-| 2.5 | Hardware Hello World | Real robot waves, sensors stream |
-| 2.6 | Sensor Hello World | Camera, LiDAR, audio captured, RViz visualization |
-| 3 | Navigation | Send nav goals, watch robot navigate |
-| 4 | Safety | Trigger E-stop, low battery |
-| 5 | Plans | CLI upload and calibrate |
-| 6 | State Machine | Full CLI workflow |
-| 7 | Capture | See saved images with metadata |
-| 8 | Detection | Run VLM, see defect JSON |
-| 9 | Reports | Generate and view PDF |
-| 10 | Integration | Full end-to-end cycle |
-| 11 | Deployment | `docker-compose up` on hardware |
+1. Setup → 2. Nav Core → 3. NavSim → 4. SLAM → 5. Sensors → 6. Loco → 7. Hello World
 
-### Key Insight
-
-This is **integration work**. We're not building:
-- A locomotion controller (Unitree SDK has it)
-- A SLAM system (slam_toolbox is proven)
-- A path planner (Nav2 is industry standard)
-- A vision model (VLM APIs are ready)
-- A PDF library (ReportLab works)
-
-We're building the **glue** that connects these pieces into an inspection workflow.
-
-Each story ends with something you can **run and verify** - no story is just "code written" without proof it works.
+After Story 7, we have hardware connectivity proven. Remaining stories build on that foundation.
 
 ---
 
-_Generated by BMAD Epic and Story Creation Workflow_
+_Generated for Lightweight C++ Architecture v2.0_
 _Date: 2025-12-04_
