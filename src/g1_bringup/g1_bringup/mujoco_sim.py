@@ -17,6 +17,10 @@ from pathlib import Path
 from typing import Optional, Tuple
 from dataclasses import dataclass, field
 
+# Configure MuJoCo for headless rendering before importing
+# EGL is preferred for headless GPU rendering, OSMesa for software rendering
+os.environ.setdefault('MUJOCO_GL', 'egl')
+
 import mujoco
 import numpy as np
 import rclpy
@@ -26,6 +30,7 @@ from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, PointCloud2, PointField, Imu, CameraInfo
 from std_msgs.msg import Header
+from rosgraph_msgs.msg import Clock
 from tf2_ros import TransformBroadcaster
 import struct
 
@@ -126,8 +131,38 @@ class MuJoCoSimManager(Node):
         self._running = False
         self._physics_thread: Optional[threading.Thread] = None
 
-        # Initialize MuJoCo
+        # Time synchronization: Use an internal counter that starts at 0
+        # This ensures all nodes using use_sim_time see consistent time
+        # that starts from 0 when simulation begins
+        self._sim_time: float = 0.0  # Simulation time in seconds (starts at 0)
+        self._last_wall_time: float = time.monotonic()  # For computing dt
+        self._mujoco_ready = False
+
+        # Thread-safe time tracking to ensure TF timestamps never go backward
+        self._time_lock = threading.Lock()
+        self._last_clock_time: float = 0.0  # Last published clock time
+        self._last_tf_time: float = 0.0  # Last published TF/message time
+
+        # Debug: Log start
+        self.get_logger().info("[MUJOCO] Node initializing with sim_time=0")
+
+        # Create clock publisher FIRST (before MuJoCo init which takes 5-8 seconds)
+        self.clock_pub = self.create_publisher(Clock, '/clock', 10)
+
+        # Publish initial clock immediately (before timer starts)
+        self._publish_clock()
+        self.get_logger().info("[MUJOCO] Clock publisher started, initializing MuJoCo...")
+
+        # Initialize MuJoCo (this takes 5-8 seconds for renderer)
         self._init_mujoco()
+
+        # After MuJoCo init, mark as ready
+        self._mujoco_ready = True
+        init_elapsed = self._sim_time  # Time accumulated during init
+        self.get_logger().info(f"[MUJOCO] MuJoCo ready after {init_elapsed:.2f}s")
+
+        # Start clock timer now that everything is initialized
+        self._clock_timer = self.create_timer(0.02, self._publish_clock)  # 50Hz clock
 
         # QoS for cmd_vel
         cmd_vel_qos = QoSProfile(
@@ -149,6 +184,8 @@ class MuJoCoSimManager(Node):
         self.rgb_info_pub = self.create_publisher(CameraInfo, '/g1/camera/rgb/camera_info', 10)
         self.depth_info_pub = self.create_publisher(CameraInfo, '/g1/camera/depth/camera_info', 10)
         self.lidar_pub = self.create_publisher(PointCloud2, '/g1/lidar/points', 10)
+
+        # Note: Clock publisher already created before MuJoCo init
 
         # TF broadcaster for odom -> base_link (dynamic transform)
         # Note: Static sensor frame transforms are handled by robot_state_publisher via URDF
@@ -278,8 +315,18 @@ class MuJoCoSimManager(Node):
             # Set physics timestep
             self.mj_model.opt.timestep = self.physics_dt
 
-            # Initialize renderer for camera
-            self.renderer = mujoco.Renderer(self.mj_model, self.CAMERA_HEIGHT, self.CAMERA_WIDTH)
+            # Initialize renderer for camera (with headless fallback)
+            self._rendering_available = False
+            try:
+                self.renderer = mujoco.Renderer(self.mj_model, self.CAMERA_HEIGHT, self.CAMERA_WIDTH)
+                self._rendering_available = True
+                self.get_logger().info("[MUJOCO] Renderer initialized (EGL/headless)")
+            except Exception as render_err:
+                self.get_logger().warn(
+                    f"[MUJOCO] Renderer unavailable (no GPU/display): {render_err}. "
+                    "Camera images will be synthetic."
+                )
+                self.renderer = None
 
             # Get initial pose from MuJoCo
             self._sync_state_from_mujoco()
@@ -388,7 +435,11 @@ class MuJoCoSimManager(Node):
             gravity_body = R.T @ gravity_world
             self.state.accel = np.array([body_acc[0], body_acc[1], body_acc[2]]) - gravity_body
 
-            self.state.sim_time = self.mj_data.time
+            # Update sim_time to use unified time (wall clock based)
+            # This ensures all timestamps are consistent and monotonic
+            self.state.sim_time = self._get_current_time()
+
+            # Note: Clock is published by dedicated _publish_clock timer
 
         except Exception as e:
             self.get_logger().warn(f"[MUJOCO] Failed to sync state: {e}")
@@ -418,14 +469,107 @@ class MuJoCoSimManager(Node):
         except Exception as e:
             self.get_logger().warn(f"[MUJOCO] Failed to set pose: {e}")
 
+    def _get_current_time(self) -> float:
+        """
+        Get current simulation time.
+
+        Returns the internal simulation time counter that starts at 0.
+        This ensures all nodes using use_sim_time see consistent time.
+
+        Note: We DON'T use mj_data.time because physics can run
+        faster than real-time, causing time to race ahead.
+        """
+        return self._sim_time
+
+    def _advance_sim_time(self) -> None:
+        """
+        Advance simulation time based on wall clock elapsed time.
+
+        Called by the clock publisher timer to increment simulation time.
+        Uses wall clock delta to ensure 1:1 real-time progression.
+        """
+        current_wall = time.monotonic()
+        dt = current_wall - self._last_wall_time
+        self._last_wall_time = current_wall
+
+        # Clamp dt to avoid large jumps (e.g., if process was paused)
+        dt = min(dt, 0.1)  # Max 100ms per tick
+
+        self._sim_time += dt
+
+    def _get_sim_time_msg(self):
+        """
+        Get current simulation time as a ROS Time message for TF/sensor data.
+
+        Thread-safe and guarantees timestamps are >= last clock time.
+        This ensures TF timestamps are never "in the future" relative to /clock,
+        which would cause TF2 to see "old data".
+        """
+        from builtin_interfaces.msg import Time
+        current_time = self._get_current_time()
+
+        # Ensure message timestamps are >= last clock time (thread-safe)
+        with self._time_lock:
+            # TF timestamps must be >= last clock time to avoid "old data" errors
+            if current_time < self._last_clock_time:
+                current_time = self._last_clock_time
+            # Also ensure TF timestamps are monotonic within themselves
+            if current_time <= self._last_tf_time:
+                current_time = self._last_tf_time + 0.0001
+            self._last_tf_time = current_time
+
+        sec = int(current_time)
+        nanosec = int((current_time - sec) * 1e9)
+        time_msg = Time()
+        time_msg.sec = sec
+        time_msg.nanosec = nanosec
+        return time_msg
+
+    def _publish_clock(self) -> None:
+        """
+        Publish clock message - runs continuously from node start.
+
+        This is the ONLY place that advances simulation time.
+        Clock is the authoritative time source. TF and other messages must
+        use timestamps >= the last published clock time.
+        """
+        from builtin_interfaces.msg import Time
+
+        # Advance simulation time first (based on wall clock)
+        self._advance_sim_time()
+
+        current_time = self._get_current_time()
+
+        # Ensure clock is monotonic and update the reference time
+        with self._time_lock:
+            if current_time <= self._last_clock_time:
+                current_time = self._last_clock_time + 0.0001
+            self._last_clock_time = current_time
+
+        sec = int(current_time)
+        nanosec = int((current_time - sec) * 1e9)
+
+        stamp = Time()
+        stamp.sec = sec
+        stamp.nanosec = nanosec
+
+        clock_msg = Clock()
+        clock_msg.clock = stamp
+        self.clock_pub.publish(clock_msg)
+
+        # Debug log every 5 seconds to verify time is monotonic
+        if sec % 5 == 0 and nanosec < 50000000:  # Only log once per 5s window
+            self.get_logger().info(f"[MUJOCO] Clock: {current_time:.3f}s")
+
     def _publish_odom(self) -> None:
         """Publish odometry and TF."""
         with self.state_lock:
-            now = self.get_clock().now()
+            # Use simulation time for consistent timestamps
+            stamp = self._get_sim_time_msg()
 
             # Odometry message
             odom = Odometry()
-            odom.header.stamp = now.to_msg()
+            odom.header.stamp = stamp
             odom.header.frame_id = 'odom'
             odom.child_frame_id = 'base_link'
 
@@ -454,7 +598,7 @@ class MuJoCoSimManager(Node):
 
             # TF: odom -> base_link
             tf = TransformStamped()
-            tf.header.stamp = now.to_msg()
+            tf.header.stamp = stamp
             tf.header.frame_id = 'odom'
             tf.child_frame_id = 'base_link'
             tf.transform.translation.x = self.state.x
@@ -470,10 +614,10 @@ class MuJoCoSimManager(Node):
     def _publish_imu(self) -> None:
         """Publish IMU data from MuJoCo physics."""
         with self.state_lock:
-            now = self.get_clock().now().to_msg()
+            stamp = self._get_sim_time_msg()
 
             imu = Imu()
-            imu.header.stamp = now
+            imu.header.stamp = stamp
             imu.header.frame_id = 'imu_link'
 
             # Orientation
@@ -502,7 +646,12 @@ class MuJoCoSimManager(Node):
     def _publish_camera(self) -> None:
         """Publish camera RGB and depth images rendered from MuJoCo."""
         with self.state_lock:
-            now = self.get_clock().now().to_msg()
+            stamp = self._get_sim_time_msg()
+
+            # If renderer unavailable, publish synthetic images
+            if not self._rendering_available or self.renderer is None:
+                self._publish_synthetic_camera(stamp)
+                return
 
             try:
                 # Get camera position and orientation from robot state
@@ -555,7 +704,7 @@ class MuJoCoSimManager(Node):
 
                 # Publish RGB image
                 rgb_msg = Image()
-                rgb_msg.header.stamp = now
+                rgb_msg.header.stamp = stamp
                 rgb_msg.header.frame_id = 'camera_rgb_frame'
                 rgb_msg.height = self.CAMERA_HEIGHT
                 rgb_msg.width = self.CAMERA_WIDTH
@@ -578,7 +727,7 @@ class MuJoCoSimManager(Node):
                 depth_mm = np.clip(depth_m * 10000, 0, 65535).astype(np.uint16)
 
                 depth_msg = Image()
-                depth_msg.header.stamp = now
+                depth_msg.header.stamp = stamp
                 depth_msg.header.frame_id = 'camera_depth_frame'
                 depth_msg.height = self.CAMERA_HEIGHT
                 depth_msg.width = self.CAMERA_WIDTH
@@ -590,7 +739,7 @@ class MuJoCoSimManager(Node):
                 self.depth_pub.publish(depth_msg)
 
                 # Publish camera info
-                self.camera_info.header.stamp = now
+                self.camera_info.header.stamp = stamp
                 self.camera_info.header.frame_id = 'camera_rgb_frame'
                 self.rgb_info_pub.publish(self.camera_info)
                 self.camera_info.header.frame_id = 'camera_depth_frame'
@@ -599,10 +748,49 @@ class MuJoCoSimManager(Node):
             except Exception as e:
                 self.get_logger().warn(f"[MUJOCO] Camera render failed: {e}", throttle_duration_sec=5.0)
 
+    def _publish_synthetic_camera(self, timestamp) -> None:
+        """Publish synthetic camera images when renderer is unavailable."""
+        # Create a simple gradient image (for testing without GPU)
+        rgb = np.zeros((self.CAMERA_HEIGHT, self.CAMERA_WIDTH, 3), dtype=np.uint8)
+        # Gray gradient
+        for y in range(self.CAMERA_HEIGHT):
+            rgb[y, :, :] = int(128 + 64 * math.sin(y * 0.05))
+
+        rgb_msg = Image()
+        rgb_msg.header.stamp = timestamp
+        rgb_msg.header.frame_id = 'camera_rgb_frame'
+        rgb_msg.height = self.CAMERA_HEIGHT
+        rgb_msg.width = self.CAMERA_WIDTH
+        rgb_msg.encoding = 'rgb8'
+        rgb_msg.is_bigendian = False
+        rgb_msg.step = self.CAMERA_WIDTH * 3
+        rgb_msg.data = rgb.tobytes()
+        self.rgb_pub.publish(rgb_msg)
+
+        # Create synthetic depth (uniform 2m depth)
+        depth_mm = np.full((self.CAMERA_HEIGHT, self.CAMERA_WIDTH), 2000, dtype=np.uint16)
+        depth_msg = Image()
+        depth_msg.header.stamp = timestamp
+        depth_msg.header.frame_id = 'camera_depth_frame'
+        depth_msg.height = self.CAMERA_HEIGHT
+        depth_msg.width = self.CAMERA_WIDTH
+        depth_msg.encoding = '16UC1'
+        depth_msg.is_bigendian = False
+        depth_msg.step = self.CAMERA_WIDTH * 2
+        depth_msg.data = depth_mm.tobytes()
+        self.depth_pub.publish(depth_msg)
+
+        # Publish camera info
+        self.camera_info.header.stamp = timestamp
+        self.camera_info.header.frame_id = 'camera_rgb_frame'
+        self.rgb_info_pub.publish(self.camera_info)
+        self.camera_info.header.frame_id = 'camera_depth_frame'
+        self.depth_info_pub.publish(self.camera_info)
+
     def _publish_lidar(self) -> None:
         """Publish LiDAR point cloud using MuJoCo raycasting."""
         with self.state_lock:
-            now = self.get_clock().now().to_msg()
+            stamp = self._get_sim_time_msg()
 
             try:
                 # Get LiDAR position in world frame
@@ -653,7 +841,7 @@ class MuJoCoSimManager(Node):
                         points.append((x, y, z, intensity))
 
                 # Create PointCloud2 message
-                pc_msg = self._create_pointcloud2(points, now)
+                pc_msg = self._create_pointcloud2(points, stamp)
                 self.lidar_pub.publish(pc_msg)
 
             except Exception as e:

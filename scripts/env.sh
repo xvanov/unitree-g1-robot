@@ -192,9 +192,10 @@ _setup_ros2_env() {
 
     # Step 5: Set ROS2 middleware and network settings
     export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-    export CYCLONEDDS_HOME=/usr/local
-    export ROS_LOCALHOST_ONLY=1
     export ROS_DOMAIN_ID=42
+    # Note: Using default CycloneDDS config (no CYCLONEDDS_URI)
+    # Custom configs can break localhost discovery on some systems
+    unset CYCLONEDDS_URI 2>/dev/null || true
 
     # Step 6: Check workspace and source if available
     if [[ -f "$PROJECT_ROOT/install/setup.bash" ]]; then

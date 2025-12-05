@@ -268,11 +268,14 @@ Each innovative aspect requires targeted validation:
 
 ### Compute Architecture
 
-**Hybrid Processing Model:**
-- **Onboard (Jetson Orin):** Real-time navigation, obstacle avoidance, sensor fusion, basic perception
-- **Offloaded (via WiFi):** Heavy ML inference (defect detection models), plan parsing, report generation
+**Hardware Capabilities:**
+- **Onboard (Jetson Orin NX 16GB):** Capable of real-time navigation, obstacle avoidance, sensor fusion, perception
+- **Offload Option (via WiFi):** Heavy ML inference (defect detection models), plan parsing, report generation
 
-Robot maintains WiFi connection throughout operation. All processing can be offloaded if needed for complex ML workloads.
+**MVP Deployment Model (2025-12-04 Decision):**
+All processing runs on an off-board development machine connected via Ethernet. Robot runs stock Unitree firmware only — no custom software installed on the robot. This simplifies development and avoids conflicts on shared robot hardware.
+
+See `docs/architecture.md` for deployment details. Docker on Jetson remains a future option if untethered operation is needed.
 
 ### Software Development
 

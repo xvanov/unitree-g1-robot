@@ -20,6 +20,8 @@ setup(
         'console_scripts': [
             'sim_locomotion = g1_navigation.sim_locomotion:main',
             'hardware_bridge = g1_navigation.hardware_bridge:main',
+            'loco_bridge = g1_navigation.loco_bridge:main',
+            'coverage_tracker = g1_navigation.coverage_tracker:main',
         ],
     },
 )

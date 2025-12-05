@@ -196,10 +196,11 @@ This bridge is the critical integration point - Nav2's sophisticated planning dr
 | **State Mgmt** | State Machine | IDLE→CALIBRATING→INSPECTING→COMPLETE | Clear operational states |
 | | Implementation | Hybrid (Nav2 BT + custom Python) | Nav2 for nav behaviors, Python for high-level |
 | **Data Storage** | Format | ROS2 bags for all data | Native tooling, replay capability |
-| | Compute Split | Onboard: nav/capture, Offloaded: ML/reports | Jetson for real-time, server for heavy ML |
+| | Compute Split | **ALL off-board via Ethernet** | Keep robot environment clean, shared robot |
 | **Defect Detection** | Model | VLM API (GPT-4V/Claude) | No training needed, fast MVP iteration |
 | | Location Errors | Object detection + localization | Automated comparison against plan |
-| **Deployment** | To Robot | Docker containers | Reproducible, NVIDIA Jetson support |
+| **Deployment** | Primary | Off-board machine via Ethernet | Clean robot env, avoids conflicts with other users |
+| | Future Option | Docker on Jetson Orin NX | If dedicated robot deployment needed later |
 | | Config | YAML + .env | ROS2 native params + secrets separation |
 
 ### Simulation Architecture
@@ -301,27 +302,100 @@ class SimLocomotionController:
 
 ### Compute Architecture
 
+**Deployment Model: Off-Board via Ethernet (2025-12-04 Decision)**
+
+The entire ROS2 stack runs on an off-board development machine connected to the robot via Ethernet. The robot runs only Unitree stock firmware — no custom code installed on the robot itself.
+
+**Rationale:**
+- Robot is shared by multiple users — avoid polluting environment
+- Unitree firmware already publishes DDS topics (LiDAR, IMU, joints)
+- SDK commands work over network via DDS
+- Ethernet provides <5ms latency — sufficient for real-time control
+- Easier development iteration (no deploy-to-robot cycle)
+- Future option: Deploy Docker to Jetson if dedicated robot needed
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    COMPUTE SPLIT                                │
+│                    COMPUTE ARCHITECTURE                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ONBOARD (Jetson Orin NX 16GB):                                │
-│  ├── Sensor capture and publishing                             │
-│  ├── SLAM (slam_toolbox)                                       │
-│  ├── Navigation (Nav2)                                         │
-│  ├── Obstacle avoidance (real-time safety)                     │
-│  ├── State machine execution                                   │
-│  ├── ROS2 bag recording                                        │
-│  └── Nav2 → LocoClient bridge                                  │
+│  ROBOT (Unitree G1 - Stock Firmware Only):                     │
+│  ├── DDS topics published natively:                            │
+│  │   ├── rt/lowstate (IMU, joints, battery)                    │
+│  │   ├── rt/utlidar/cloud (LiDAR point cloud)                  │
+│  │   └── Camera streams (RealSense D435i)                      │
+│  ├── SDK services accepting commands via DDS                   │
+│  └── NO custom code installed                                  │
 │                                                                 │
-│  OFFLOADED (Server via WiFi):                                  │
-│  ├── Plan parsing (PDF/PNG → spatial data)                     │
-│  ├── Defect detection (VLM API calls)                          │
-│  ├── Object detection + plan correlation                       │
-│  ├── Report generation (PDF output)                            │
-│  └── Data archival and analysis                                │
+│              │ Ethernet (192.168.123.x, <5ms latency)          │
+│              ▼                                                  │
 │                                                                 │
+│  OFF-BOARD MACHINE (Development/Deployment):                   │
+│  ├── ROS2 Humble + CycloneDDS (same DDS domain as robot)       │
+│  ├── Direct subscription to robot DDS topics                   │
+│  ├── slam_toolbox (2D SLAM)                                    │
+│  ├── Nav2 (path planning, obstacle avoidance)                  │
+│  ├── g1_perception (sensor processing)                         │
+│  ├── g1_navigation (loco_bridge calls SDK over network)        │
+│  ├── g1_inspection (state machine, defect detection)           │
+│  ├── g1_safety (E-stop, monitoring)                            │
+│  ├── VLM API calls (defect detection)                          │
+│  ├── Report generation                                         │
+│  └── ROS2 bag recording                                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Network Configuration:**
+
+| Component | IP Address | Notes |
+|-----------|------------|-------|
+| G1 Robot (Ethernet) | 192.168.123.164 | Fixed by Unitree hardware |
+| LiDAR (MID-360) | 192.168.123.120 | Fixed by Unitree hardware |
+| Off-board Machine | 192.168.123.x | Any address except .164, .120 |
+| DDS Domain ID | 0 | Default, shared with robot |
+
+**SDK Remote Control:**
+
+The `unitree_sdk2_python` uses CycloneDDS under the hood. Commands can be sent from any machine on the same network/DDS domain:
+
+```python
+# This runs on OFF-BOARD machine, commands robot remotely
+from unitree_sdk2py.core.channel import ChannelFactoryInitialize
+from unitree_sdk2py.g2.sport.sport_client import SportClient
+
+# Connect to robot's DDS domain over ethernet
+ChannelFactoryInitialize(0, "eth0")  # Your ethernet interface
+
+client = SportClient()
+client.Init()
+client.Move(0.3, 0, 0)  # Robot walks forward - command sent over DDS
+```
+
+**Latency Budget (Ethernet):**
+
+| Operation | Expected Latency | Requirement | Status |
+|-----------|------------------|-------------|--------|
+| E-stop command | <5ms | <500ms | ✅ |
+| cmd_vel → SDK | <5ms | continuous | ✅ |
+| LiDAR stream | <10ms | 10Hz (100ms) | ✅ |
+| Camera stream | <20ms | 1fps (1000ms) | ✅ |
+
+**Future: Docker on Jetson (If Needed)**
+
+If dedicated robot deployment becomes a requirement, the same code can run in Docker on the Jetson Orin NX:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  FUTURE OPTION: Docker on Jetson Orin NX                       │
+├─────────────────────────────────────────────────────────────────┤
+│  docker/                                                        │
+│  ├── Dockerfile.jetson      # NVIDIA L4T + ROS2 Humble          │
+│  ├── docker-compose.yaml    # Multi-container orchestration     │
+│  └── .env.example           # Environment template              │
+│                                                                 │
+│  Benefits: Isolated from host, reproducible, portable           │
+│  Base image: dustynv/ros:humble-ros-base-l4t-r36.2.0           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -372,15 +446,57 @@ Format response as structured JSON.
 
 ### Deployment Architecture
 
-**Docker on Jetson Orin NX:**
+**Primary: Off-Board Machine via Ethernet**
+
+The default deployment runs entirely on a development machine connected to the robot via Ethernet. No software installation on the robot required.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  OFF-BOARD DEPLOYMENT (Primary - MVP)                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Development Machine (Ubuntu 22.04):                           │
+│  ├── ROS2 Humble                                               │
+│  ├── CycloneDDS (RMW_IMPLEMENTATION=rmw_cyclonedds_cpp)        │
+│  ├── Nav2 + slam_toolbox                                       │
+│  ├── unitree_sdk2_python                                       │
+│  ├── All g1_* packages                                         │
+│  └── Connected to robot via Ethernet (192.168.123.x)           │
+│                                                                 │
+│  Robot (Unitree G1 EDU):                                       │
+│  └── Stock Unitree firmware only - NO modifications            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Setup for Off-Board Deployment:**
+
+```bash
+# 1. Configure network interface for robot subnet
+sudo ip addr add 192.168.123.222/24 dev eth0  # Or your ethernet interface
+
+# 2. Verify DDS connectivity to robot
+source /opt/ros/humble/setup.bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ros2 topic list  # Should see robot's DDS topics
+
+# 3. Source workspace and run
+source ~/unitree-g1-robot/install/setup.bash
+ros2 launch g1_bringup robot_nav_launch.py
+```
+
+**Future Option: Docker on Jetson Orin NX**
+
+If dedicated robot deployment becomes a requirement (e.g., untethered operation, field deployment):
+
 - Base: NVIDIA L4T + ROS2 Humble ([jetson-containers](https://github.com/dusty-nv/jetson-containers))
 - Tested: Jetson Orin NX 16GB with JetPack 6.x
+- Same codebase, just containerized
 
-**Container Structure:**
+**Container Structure (Future):**
 ```
-g1_inspector/
+docker/
 ├── Dockerfile.jetson      # Orin deployment image
-├── Dockerfile.server      # Offload server image
 ├── docker-compose.yaml    # Multi-container orchestration
 └── .env.example           # Environment template
 ```
@@ -517,10 +633,9 @@ unitree-g1-robot/
 ├── external/                    # Gitignored, populated by setup.sh
 ├── scripts/
 │   ├── setup.sh                 # One-command environment setup
-│   └── deploy.sh                # Docker deployment script
-├── docker/
-│   ├── Dockerfile.jetson
-│   ├── Dockerfile.server
+│   └── run_robot.sh             # Launch script for real robot (off-board)
+├── docker/                      # FUTURE: For on-robot Docker deployment
+│   ├── Dockerfile.jetson        # (not needed for MVP)
 │   └── docker-compose.yaml
 ├── config/                      # Non-ROS config (API keys, etc.)
 │   └── .env.example
@@ -709,42 +824,48 @@ except APIError as e:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      DATA FLOW                                  │
+│                      DATA FLOW (Off-Board Model)                │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌──────────┐                                                   │
-│  │  Sensors │                                                   │
-│  └────┬─────┘                                                   │
-│       │                                                         │
-│       ▼                                                         │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │g1_perception │───▶│   ROS2 Bag   │───▶│  Offload     │      │
-│  │ (capture)    │    │  (storage)   │    │  Server      │      │
-│  └──────┬───────┘    └──────────────┘    └──────┬───────┘      │
-│         │                                        │              │
-│         ▼                                        ▼              │
-│  ┌──────────────┐                         ┌──────────────┐      │
-│  │slam_toolbox  │                         │ VLM API      │      │
-│  │  (2D SLAM)   │                         │ (detection)  │      │
-│  └──────┬───────┘                         └──────┬───────┘      │
-│         │                                        │              │
-│         ▼                                        ▼              │
-│  ┌──────────────┐                         ┌──────────────┐      │
-│  │    Nav2      │                         │   Report     │      │
-│  │ (planning)   │                         │  Generator   │      │
-│  └──────┬───────┘                         └──────┬───────┘      │
-│         │                                        │              │
-│         ▼                                        ▼              │
-│  ┌──────────────┐                         ┌──────────────┐      │
-│  │g1_navigation │                         │  PDF Report  │      │
-│  │(loco_bridge) │                         │              │      │
-│  └──────┬───────┘                         └──────────────┘      │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌──────────────┐                                               │
-│  │  LocoClient  │                                               │
-│  │ (SDK cmds)   │                                               │
-│  └──────────────┘                                               │
+│  ROBOT (DDS Topics via Ethernet):                               │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  rt/lowstate ────┐                                        │   │
+│  │  rt/utlidar/cloud ─┼─── DDS over Ethernet ───────────────┼──▶│
+│  │  Camera streams ──┘                                       │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  OFF-BOARD MACHINE (All Processing):                           │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  ┌──────────────┐                                         │   │
+│  │  │g1_perception │ ◀── Subscribe to robot DDS topics       │   │
+│  │  │ (sensor proc)│                                         │   │
+│  │  └──────┬───────┘                                         │   │
+│  │         │                                                 │   │
+│  │         ▼                                                 │   │
+│  │  ┌──────────────┐    ┌──────────────┐                     │   │
+│  │  │slam_toolbox  │    │   ROS2 Bag   │                     │   │
+│  │  │  (2D SLAM)   │    │  (storage)   │                     │   │
+│  │  └──────┬───────┘    └──────┬───────┘                     │   │
+│  │         │                   │                             │   │
+│  │         ▼                   ▼                             │   │
+│  │  ┌──────────────┐    ┌──────────────┐                     │   │
+│  │  │    Nav2      │    │ VLM API      │                     │   │
+│  │  │ (planning)   │    │ (detection)  │                     │   │
+│  │  └──────┬───────┘    └──────┬───────┘                     │   │
+│  │         │                   │                             │   │
+│  │         ▼                   ▼                             │   │
+│  │  ┌──────────────┐    ┌──────────────┐                     │   │
+│  │  │g1_navigation │    │  PDF Report  │                     │   │
+│  │  │(loco_bridge) │    │  Generator   │                     │   │
+│  │  └──────┬───────┘    └──────────────┘                     │   │
+│  │         │                                                 │   │
+│  │         │  SDK commands via DDS                           │   │
+│  └─────────┼─────────────────────────────────────────────────┘   │
+│            │                                                     │
+│            ▼                                                     │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Robot: LocoClient receives commands, executes walking   │   │
+│  └──────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -789,13 +910,15 @@ g1_bringup  g1_navigation  g1_perception  g1_inspection
 
 ### Development vs Production Structure
 
-| Aspect | Development | Production (Jetson) |
-|--------|-------------|---------------------|
-| **Launch** | `sim_launch.py` | `robot_launch.py` |
-| **Locomotion** | Fake (teleport) | SDK LocoClient |
-| **Sensors** | Simulated in MuJoCo | Real hardware |
-| **Config** | `config/sim_*.yaml` | `config/robot_*.yaml` |
-| **Network** | localhost | 192.168.123.x / WiFi |
+| Aspect | Simulation | Real Robot (Off-Board) | Future: On-Robot Docker |
+|--------|------------|------------------------|-------------------------|
+| **Launch** | `sim_launch.py` | `robot_launch.py` | `robot_launch.py` |
+| **Locomotion** | Fake (teleport) | SDK LocoClient (over DDS) | SDK LocoClient (local) |
+| **Sensors** | Simulated in MuJoCo | DDS subscription from robot | Local DDS topics |
+| **Config** | `config/sim_*.yaml` | `config/robot_*.yaml` | `config/robot_*.yaml` |
+| **Where Code Runs** | Dev machine | Dev machine | Jetson Orin NX |
+| **Network** | localhost | Ethernet 192.168.123.x | localhost (on Jetson) |
+| **Robot Changes** | None | None | Docker installed |
 
 ## Architecture Validation Results
 

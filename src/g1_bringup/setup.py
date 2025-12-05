@@ -11,6 +11,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', [
             'launch/sim_launch.py',
+            'launch/sim_nav_launch.py',
             'launch/robot_launch.py',
             'launch/inspection_launch.py',
         ]),
@@ -21,6 +22,8 @@ setup(
         ]),
         ('share/' + package_name + '/config/rviz', [
             'config/rviz/sim.rviz',
+            'config/rviz/nav.rviz',
+            'config/rviz/sensor_test.rviz',
         ]),
     ],
     install_requires=['setuptools'],

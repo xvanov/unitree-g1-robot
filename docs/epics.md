@@ -830,83 +830,67 @@ grep "\[SAFETY\]" /var/log/g1_inspector/latest.log
 
 ---
 
-## Story 11: Docker Deployment
+## Story 11: Docker Deployment (FUTURE - OPTIONAL)
+
+**NOTE (2025-12-04):** This story is **OPTIONAL** for MVP. The primary deployment model is **off-board via Ethernet** — all code runs on a development machine, robot runs stock Unitree firmware. Docker on Jetson is only needed if dedicated/untethered robot deployment becomes a requirement.
 
 As a developer,
-I want Docker images for Jetson and server deployment,
-So that I can deploy reproducibly to robot hardware.
+I want Docker images for Jetson deployment,
+So that I can deploy reproducibly to robot hardware if untethered operation is needed.
 
-**Scope:**
+**Primary Deployment (MVP - No Docker Required):**
+```bash
+# All code runs on dev machine connected via Ethernet
+sudo ip addr add 192.168.123.222/24 dev eth0
+source ~/unitree-g1-robot/install/setup.bash
+ros2 launch g1_bringup robot_nav_launch.py
+```
+
+**Future Scope (If Untethered Operation Needed):**
 - Create `Dockerfile.jetson`:
   - Base: NVIDIA L4T + ROS2 Humble
   - All project packages built
   - External dependencies installed
   - Entry point for robot_launch.py
-- Create `Dockerfile.server`:
-  - Offload server for VLM + report generation
-  - Python environment with API clients
 - Create `docker-compose.yaml`:
-  - Orchestrate robot + server containers
-  - Network configuration
+  - Orchestrate containers on Jetson
+  - Network configuration for local DDS
   - Volume mounts for data and config
 - Create `.env.example` documenting all required variables
-- Create `robot_launch.py` for real hardware (vs sim_launch.py)
 
-**Acceptance Criteria:**
-- `docker build` succeeds for both images
-- `docker-compose up` starts full system
-- Robot connects to real Unitree G1 hardware
-- Offload server accessible from robot
+**Acceptance Criteria (If Implemented):**
+- `docker build` succeeds for Jetson image
+- Container starts and connects to robot's local DDS topics
+- Navigation and inspection work without external machine
 - Config/data persisted via volumes
 
 **Technical Notes:**
-- Base image: dusty-nv/jetson-containers
+- Base image: dusty-nv/jetson-containers (dustynv/ros:humble-ros-base-l4t-r36.2.0)
 - GPU access configured for Jetson
-- Network: robot at 192.168.123.164, configurable via .env
+- Same codebase as off-board deployment, just containerized
 
-**Prerequisites:** Story 10
+**Prerequisites:** Story 10 (only if this story is pursued)
 
-**🧪 Runnable Verification:**
+**🧪 Runnable Verification (If Implemented):**
 ```bash
-# Build images (on development machine)
+# Build image (on development machine or Jetson)
 docker build -f docker/Dockerfile.jetson -t g1-inspector:jetson .
-docker build -f docker/Dockerfile.server -t g1-inspector:server .
 
 # Test locally with docker-compose (simulation mode)
 cp .env.example .env
-# Edit .env with API keys
-
 docker-compose -f docker/docker-compose.dev.yaml up
-# Should start simulation environment in containers
-
-# From host, verify system is running
-curl http://localhost:8080/health  # Server health check
-ros2 topic list  # Should see /g1/* topics
-
-# Run CLI against containerized system
-./scripts/g1_inspect.py status
-# Should show IDLE
 
 # On real Jetson hardware:
-# 1. Copy images to Jetson
-# 2. Connect to robot network (192.168.123.x)
-# 3. Run docker-compose
+# 1. Build or transfer image to Jetson
+# 2. Run container (DDS connects to local robot)
+docker run --network host --runtime nvidia g1-inspector:jetson
 
-docker-compose -f docker/docker-compose.robot.yaml up
-# Should connect to real G1 robot
-
-# Verify real robot connection
-./scripts/g1_inspect.py status
-# Should show real battery level from robot
-
-# Run real inspection
-./scripts/g1_inspect.py upload --plan real_site_plan.pdf
-./scripts/g1_inspect.py calibrate --plan <id> --position "0,0,0"
-./scripts/g1_inspect.py start --plan <id>
-# Robot should physically move and inspect
+# Verify robot connection
+ros2 topic list  # Should see robot DDS topics
+./scripts/g1_inspect.py status  # Should show real battery level
 ```
 
-**Definition of Done:** Docker images build, compose starts system, real robot connection verified.
+**Definition of Done:** Docker image builds, container runs on Jetson, connects to robot via local DDS.
 
 ---
 
