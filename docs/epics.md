@@ -30,6 +30,7 @@ This document defines the epic and story breakdown for the Unitree G1 constructi
 | JSON | nlohmann/json |
 | PDF | libharu |
 | Build | CMake |
+| Container | Docker |
 
 ---
 
@@ -37,32 +38,45 @@ This document defines the epic and story breakdown for the Unitree G1 constructi
 
 **Goal:** Autonomous robot that navigates a construction site, captures images, detects defects via VLM API, and generates PDF reports.
 
-**Total Stories:** 14
+**Total Stories:** 9
 
 ---
 
-## Story 1: Project Setup
+## Story 1: Project Setup + Docker Environment
 
 As a developer,
-I want the C++ project structure with build system and dependencies configured,
-So that I can build and develop the system.
+I want a standardized, containerized development environment with all dependencies configured,
+So that I can build and develop the system reproducibly on any platform.
 
 **Scope:**
+- Create multi-arch Dockerfile (supports Mac, Ubuntu 22.04 amd64, Ubuntu 20.04 arm64)
+- Create compose.yaml for development (Docker Compose v2)
+- Create .env.example for configuration
 - Create CMakeLists.txt with all targets
 - Set up directory structure (src/, sim/, test/, config/)
 - Configure unitree_sdk2 as external dependency
-- Add OpenCV, curl, nlohmann/json dependencies
+- Add OpenCV, curl, nlohmann/json, libharu dependencies
 - Create basic types (Point2D, Pose2D, Velocity)
+- Create ILocomotion/ISensorSource interface stubs
 - Create placeholder main.cpp that compiles
+- Create GitHub Actions CI skeleton (.github/workflows/ci.yml)
 
 **Acceptance Criteria:**
-- `cmake ..` configures without errors
-- `make` builds successfully
+- `docker build` succeeds on Mac, Ubuntu 22.04 amd64, Ubuntu 20.04 arm64
+- `docker compose up` starts development environment
+- Inside container: `cmake ..` configures without errors
+- Inside container: `make` builds successfully
 - `./g1_inspector --help` shows usage
 - All dependencies found and linked
+- CI pipeline runs on push (build only for now)
 
 **Verification:**
 ```bash
+# Build and start dev environment
+docker compose up -d --build
+
+# Inside container
+docker compose exec dev bash
 mkdir build && cd build
 cmake ..
 make -j
@@ -74,44 +88,17 @@ make -j
 
 ---
 
-## Story 2: Navigation Core
+## Story 2: Navigation + Simulation (NavSim)
 
 As the robot,
-I want path planning and obstacle avoidance algorithms,
-So that I can navigate autonomously.
+I want path planning, obstacle avoidance, and a 2D simulation environment,
+So that I can develop and test navigation without hardware.
 
 **Scope:**
 - Implement `Planner` class with A* algorithm
 - Implement `Costmap` class (2D occupancy grid)
 - Implement `PathFollower` class (velocity from path)
 - Define `ILocomotion` interface for abstraction
-- Unit tests for A* correctness
-
-**Acceptance Criteria:**
-- A* finds shortest path around obstacles
-- Costmap updates from simulated scan data
-- PathFollower produces smooth velocity commands
-- Unit tests pass
-
-**Verification:**
-```bash
-./build/test_navigation
-# All tests pass
-
-# Manual verification with NavSim (Story 3)
-```
-
-**Prerequisites:** Story 1
-
----
-
-## Story 3: Navigation Simulation (NavSim)
-
-As a developer,
-I want a 2D navigation simulation,
-So that I can test navigation without hardware.
-
-**Scope:**
 - Implement `NavSim` class:
   - Load map from PNG (black=obstacle, white=free)
   - Robot as 2D point with pose (x, y, theta)
@@ -122,18 +109,25 @@ So that I can test navigation without hardware.
 - Implement `SimSensorSource` (implements ISensorSource)
 - Create `nav_sim` executable
 - Output: trajectory.png, metrics.json, nav.log
+- Unit tests for A* correctness
 
 **Acceptance Criteria:**
+- A* finds shortest path around obstacles
+- Costmap updates from simulated scan data
+- PathFollower produces smooth velocity commands
 - NavSim loads test map
 - Robot navigates from start to goal
 - No collisions occur
 - PNG shows trajectory, JSON shows metrics
+- Unit tests pass
 
 **Verification:**
 ```bash
+./build/test_navigation
+# All tests pass
+
 ./build/nav_sim --map test_data/office.png --start 1,1,0 --goal 8,5 --output outputs/
 
-# Check outputs
 cat outputs/metrics.json
 # {"goal_reached": true, "path_length": 12.3, "collisions": 0, "time_s": 4.2}
 
@@ -141,11 +135,11 @@ ls outputs/
 # trajectory.png  metrics.json  nav.log
 ```
 
-**Prerequisites:** Story 2
+**Prerequisites:** Story 1
 
 ---
 
-## Story 4: SLAM Core
+## Story 3: SLAM Core
 
 As the robot,
 I want to build a map from LiDAR scans,
@@ -160,6 +154,7 @@ So that I can localize and plan paths.
 - Implement `Localizer` class (optional, odometry-only for MVP)
 - Define `ISensorSource` interface
 - Unit tests for map building
+- Create `slam_sim` executable for testing with NavSim
 
 **Acceptance Criteria:**
 - GridMapper builds reasonable map from scans
@@ -176,15 +171,15 @@ cat outputs/accuracy.json
 # {"accuracy": 0.92, "cells_mapped": 4523}
 ```
 
-**Prerequisites:** Story 3
+**Prerequisites:** Story 2
 
 ---
 
-## Story 5: Sensor Interface
+## Story 4: Hardware Integration
 
 As the system,
-I want to receive sensor data from the robot via SDK,
-So that navigation and SLAM have real data.
+I want to connect to the robot hardware via SDK,
+So that I can receive sensor data and send movement commands.
 
 **Scope:**
 - Implement `SensorManager` class:
@@ -195,35 +190,6 @@ So that navigation and SLAM have real data.
   - Callbacks for new data
 - Implement `RealSensorSource` (implements ISensorSource)
 - Parse SDK message types to internal types
-
-**Acceptance Criteria:**
-- SensorManager connects to SDK topics
-- LiDAR data parsed correctly
-- IMU data parsed correctly
-- Data accessible from main thread
-
-**Verification:**
-```bash
-# Requires connection to robot or SDK mock
-./build/g1_inspector --robot 192.168.123.164 --test-sensors
-
-# Output:
-# [SENSORS] LiDAR: 3421 points received
-# [SENSORS] IMU: orientation (0.01, 0.02, 0.00)
-# [SENSORS] Battery: 85%
-```
-
-**Prerequisites:** Story 4
-
----
-
-## Story 6: Locomotion Interface
-
-As the system,
-I want to send velocity commands to the robot via SDK,
-So that navigation can control movement.
-
-**Scope:**
 - Implement `LocoController` class:
   - Initialize SDK LocoClient
   - `setVelocity(vx, vy, omega)` sends command
@@ -232,70 +198,53 @@ So that navigation can control movement.
   - Connection status monitoring
 - Implement `RealLocomotion` (implements ILocomotion)
 - Safety limits on velocity commands
+- Create hardware hello world integration test:
+  - Connect to robot
+  - Read battery level
+  - Command stand up
+  - Command simple motion (forward 0.5m)
+  - Command stop
+  - Read LiDAR scan
 
 **Acceptance Criteria:**
+- SensorManager connects to SDK topics
+- LiDAR data parsed correctly
+- IMU data parsed correctly
 - LocoController connects to robot
 - Velocity commands sent successfully
 - Emergency stop works
 - Velocity limits enforced
+- Robot physically responds to commands (hello world test)
 
 **Verification:**
 ```bash
-# Requires real robot
-./build/g1_inspector --robot 192.168.123.164 --test-loco
+# Requires real robot connected via ethernet
+./scripts/check_g1_network.sh  # Verify connectivity first
 
-# Output:
+# Test sensors
+./build/g1_inspector --robot 192.168.123.164 --test-sensors
+# [SENSORS] LiDAR: 3421 points received
+# [SENSORS] IMU: orientation (0.01, 0.02, 0.00)
+# [SENSORS] Battery: 85%
+
+# Test locomotion
+./build/g1_inspector --robot 192.168.123.164 --test-loco
 # [LOCO] Connected to robot
 # [LOCO] Standing up... OK
 # [LOCO] Moving forward 0.2 m/s for 2s... OK
 # [LOCO] Stopping... OK
-```
 
-**Prerequisites:** Story 5
-
----
-
-## Story 7: Hardware Hello World
-
-As a developer,
-I want to verify full hardware connectivity,
-So that I confirm the robot responds to commands.
-
-**Scope:**
-- Create integration test that:
-  - Connects to robot
-  - Reads battery level
-  - Commands stand up
-  - Commands simple motion (forward 0.5m)
-  - Commands stop
-  - Reads LiDAR scan
-- All using real SDK, real robot
-
-**Acceptance Criteria:**
-- Robot physically responds to commands
-- Sensor data streams back
-- No crashes or errors
-- Battery level displayed
-
-**Verification:**
-```bash
-# Robot must be powered on, connected via ethernet
-./scripts/check_g1_network.sh  # Verify connectivity first
-
+# Full hardware hello world
 ./build/g1_inspector --robot 192.168.123.164 --hello-world
-
-# Robot should:
-# 1. Stand up
-# 2. Walk forward ~0.5m
-# 3. Stop
-# 4. Console shows sensor data
+# Robot should: stand up, walk forward ~0.5m, stop
+# Console shows sensor data
 ```
 
-**Prerequisites:** Story 6
+**Prerequisites:** Story 3
 
 ---
 
-## Story 8: Safety System
+## Story 5: Safety System
 
 As an operator,
 I want safety monitoring and emergency stop,
@@ -328,24 +277,34 @@ So that operation is safe.
 # [SAFETY] All safety checks passed
 ```
 
-**Prerequisites:** Story 7
+**Prerequisites:** Story 4
 
 ---
 
-## Story 9: State Machine + CLI
+## Story 6: State Machine + CLI + Plan Management
 
 As an operator,
-I want to control inspections via CLI,
-So that I can manage the robot easily.
+I want to control inspections via CLI and upload construction plans,
+So that I can manage the robot and define inspection areas easily.
 
 **Scope:**
+- Implement `PlanManager` class:
+  - `loadPlan(path, trade_type)` - Load PDF or PNG construction plan
+  - `parsePdf(path)` - Render PDF to image using poppler
+  - `parsePng(path)` - Direct OpenCV load
+  - `extractWalls()` - Threshold to binary, create occupancy grid
+  - `generateWaypoints()` - Grid-based coverage waypoints
+  - `setStartPosition(position, orientation)` - Set robot origin on plan
+  - `robotToPlanCoords()` / `planToRobotCoords()` - Coordinate transforms
 - Implement `StateMachine` class:
   - States: IDLE, CALIBRATING, INSPECTING, PAUSED, BLOCKED, COMPLETE, EMERGENCY_STOP, RETURNING_HOME
   - Transitions per architecture diagram
   - Status publishing (state, battery, location, completion %)
 - Implement CLI commands:
   - `status`, `start`, `pause`, `resume`, `stop`, `estop`
-  - `upload --plan <file>`, `calibrate --position x,y,theta`
+  - `upload --plan <file> [--trade finishes]` - Load and parse plan
+  - `calibrate --position x,y,theta` - Set robot position on plan
+  - `waypoints` - Show generated inspection waypoints
   - `report`, `help`
 - Interactive mode and single-command mode
 
@@ -354,6 +313,9 @@ So that I can manage the robot easily.
 - State transitions correct
 - Status shows real-time info
 - E-stop always available
+- PDF and PNG plans load successfully
+- Waypoints generated from plan
+- Coordinate transforms work correctly
 
 **Verification:**
 ```bash
@@ -364,38 +326,39 @@ State: IDLE
 Battery: 85%
 Location: (0.0, 0.0, 0.0)
 
-> upload --plan test_data/floor.png
-Plan uploaded: plan_001
+> upload --plan test_data/floor.png --trade finishes
+Plan loaded: floor.png
+  Size: 1200x800 px (24.0 x 16.0 m)
+  Trade: finishes
+  Waypoints: 47 generated
+
+> waypoints
+Waypoint 1: (2.0, 1.5)
+Waypoint 2: (4.0, 1.5)
+...
+Total: 47 waypoints
 
 > calibrate --position 0,0,0
 Calibration complete
+Robot origin set at plan position (0, 0)
 
 > start
 Inspection started
 State: INSPECTING
 
-> status
-State: INSPECTING
-Battery: 84%
-Location: (1.2, 0.5, 0.1)
-Completion: 15%
-
 > pause
 Inspection paused
-
-> resume
-Inspection resumed
 
 > stop
 Inspection stopped
 State: IDLE
 ```
 
-**Prerequisites:** Story 8
+**Prerequisites:** Story 5
 
 ---
 
-## Story 10: Visual Capture
+## Story 7: Visual Capture
 
 As the robot,
 I want to capture geotagged images during inspection,
@@ -434,11 +397,11 @@ cat data/inspections/insp_001/images/img_0001.json
 # {"timestamp": 1701705600, "pose": {"x": 1.2, "y": 0.5, "theta": 0.1}, ...}
 ```
 
-**Prerequisites:** Story 9
+**Prerequisites:** Story 6
 
 ---
 
-## Story 11: VLM Defect Detection
+## Story 8: VLM Defect Detection
 
 As the system,
 I want to analyze images via VLM API,
@@ -478,11 +441,11 @@ ls outputs/annotated/
 # img_001_annotated.jpg  img_003_annotated.jpg
 ```
 
-**Prerequisites:** Story 10
+**Prerequisites:** Story 7
 
 ---
 
-## Story 12: Report Generation
+## Story 9: Report Generation
 
 As an operator,
 I want PDF reports with punch lists,
@@ -514,134 +477,38 @@ So that I can share findings with crews.
 # Open and verify PDF has all sections
 ```
 
-**Prerequisites:** Story 11
-
----
-
-## Story 13: Integration Testing
-
-As a developer,
-I want end-to-end testing in simulation,
-So that the full pipeline works before hardware testing.
-
-**Scope:**
-- Create integration test scenarios:
-  - Happy path: full inspection cycle in NavSim
-  - Obstacle blocking: path replan
-  - E-stop during inspection
-  - Low battery return
-- Structured logging throughout
-- Performance validation:
-  - <500ms obstacle response
-  - 10Hz navigation loop
-  - 95% route completion
-
-**Acceptance Criteria:**
-- All scenarios pass in simulation
-- Performance metrics meet requirements
-- Logs structured and filterable
-
-**Verification:**
-```bash
-./scripts/run_integration_tests.sh
-
-# Output:
-# [TEST] Happy path: PASS
-# [TEST] Obstacle replan: PASS
-# [TEST] E-stop: PASS
-# [TEST] Low battery: PASS
-# [PERF] Obstacle response: 340ms (< 500ms) PASS
-# [PERF] Nav loop: 12Hz (> 10Hz) PASS
-# All integration tests passed
-```
-
-**Prerequisites:** Story 12
-
----
-
-## Story 14: Docker Deployment
-
-As a developer,
-I want Docker images for deployment,
-So that I can deploy reproducibly.
-
-**Scope:**
-- Create Dockerfile:
-  - Ubuntu 22.04 base
-  - Build dependencies
-  - Compile project
-  - Minimal runtime image
-- Create docker-compose.yml for development
-- Create .env.example for configuration
-- Volume mounts for data and config
-
-**Acceptance Criteria:**
-- `docker build` succeeds
-- `docker-compose up` starts system
-- Container connects to robot
-- Data persisted via volumes
-
-**Verification:**
-```bash
-cd docker
-docker build -t g1-inspector .
-docker-compose up -d
-
-# From host
-docker exec -it g1-inspector g1_inspector --status
-# State: IDLE
-
-# With real robot
-docker-compose -f docker-compose.robot.yml up
-```
-
-**Prerequisites:** Story 13
+**Prerequisites:** Story 8
 
 ---
 
 ## Story Dependency Graph
 
 ```
-Story 1 (Setup)
+Story 1 (Setup + Docker)
     │
     ▼
-Story 2 (Nav Core)
-    │
-    ▼
-Story 3 (NavSim) ◄─────────────────────────┐
-    │                                       │
-    ▼                                       │ (uses for testing)
-Story 4 (SLAM)                              │
-    │                                       │
-    ▼                                       │
-Story 5 (Sensors)                           │
-    │                                       │
-    ▼                                       │
-Story 6 (Locomotion)                        │
-    │                                       │
-    ▼                                       │
-Story 7 (Hardware Hello)                    │
-    │                                       │
-    ▼                                       │
-Story 8 (Safety)                            │
-    │                                       │
-    ▼                                       │
-Story 9 (State Machine + CLI)               │
-    │                                       │
-    ▼                                       │
-Story 10 (Visual Capture)                   │
-    │                                       │
-    ▼                                       │
-Story 11 (VLM Detection)                    │
-    │                                       │
-    ▼                                       │
-Story 12 (Report Gen)                       │
-    │                                       │
-    ▼                                       │
-Story 13 (Integration) ─────────────────────┘
-    │
-    ▼
-Story 14 (Docker)
+Story 2 (Navigation + NavSim) ◄─────────────┐
+    │                                        │
+    ▼                                        │ (uses for testing)
+Story 3 (SLAM)                               │
+    │                                        │
+    ▼                                        │
+Story 4 (Hardware Integration)               │
+    │                                        │
+    ▼                                        │
+Story 5 (Safety)                             │
+    │                                        │
+    ▼                                        │
+Story 6 (State Machine + CLI)                │
+    │                                        │
+    ▼                                        │
+Story 7 (Visual Capture)                     │
+    │                                        │
+    ▼                                        │
+Story 8 (VLM Detection)                      │
+    │                                        │
+    ▼                                        │
+Story 9 (Report Gen) ────────────────────────┘
 ```
 
 ---
@@ -652,20 +519,15 @@ Each story has verification commands that can be run automatically by Claude Cod
 
 | Story | Verification Method |
 |-------|---------------------|
-| 1 | Build success, binary runs |
-| 2 | Unit tests pass |
-| 3 | NavSim outputs: trajectory.png, metrics.json |
-| 4 | Unit tests pass, slam_sim accuracy |
-| 5 | Sensor data received (requires robot or mock) |
-| 6 | Loco commands sent (requires robot) |
-| 7 | Robot physically moves (requires robot + human) |
-| 8 | Safety tests pass |
-| 9 | CLI commands work |
-| 10 | Images captured with metadata |
-| 11 | VLM returns defects JSON |
-| 12 | PDF generated |
-| 13 | All integration tests pass |
-| 14 | Docker builds and runs |
+| 1 | Docker builds, binary runs |
+| 2 | Unit tests pass, NavSim outputs trajectory.png + metrics.json |
+| 3 | Unit tests pass, slam_sim accuracy |
+| 4 | Sensor data received, loco commands work, robot moves |
+| 5 | Safety tests pass |
+| 6 | CLI commands work, plan loads, waypoints generated |
+| 7 | Images captured with metadata |
+| 8 | VLM returns defects JSON |
+| 9 | PDF generated |
 
 ### Feedback Levels
 
@@ -676,21 +538,45 @@ Each story has verification commands that can be run automatically by Claude Cod
 
 ---
 
+## Story Deliverables (What You Get When Done)
+
+| Story | Deliverable | Verification |
+|-------|-------------|--------------|
+| **1: Project Setup + Docker** | Cross-platform dev environment | `docker compose up` → shell in → `cmake && make` → `./g1_inspector --help` prints usage. CI green. |
+| **2: Navigation + NavSim** | 2D navigation simulation | `./nav_sim --map office.png --goal 8,5` → outputs `trajectory.png` + `metrics.json` with `goal_reached: true` |
+| **3: SLAM Core** | Map building from scans | `./slam_sim --map office.png` → outputs `built_map.png` + `accuracy.json` showing >90% match |
+| **4: Hardware Integration** | Robot responds to commands | `./g1_inspector --robot 192.168.123.164 --hello-world` → Robot stands, walks 0.5m, stops. LiDAR/IMU data shown. |
+| **5: Safety System** | E-stop and monitoring | `./g1_inspector --test-safety` → E-stop <500ms. Battery %. Collision detection works. |
+| **6: State Machine + CLI + Plan** | Full operator control | `upload --plan floor.png` → `calibrate` → `start` → inspection runs. `pause`/`resume`/`stop` work. |
+| **7: Visual Capture** | Geotagged images saved | 30s inspection → `data/inspections/` has `img_*.jpg` + `img_*.json` with pose metadata. |
+| **8: VLM Detection** | AI defect analysis | `./detection_sim --images samples/` → `defects.json` with type, location, confidence. Annotated images. |
+| **9: Report Generation** | PDF inspection report | `./g1_inspector --generate-report` → PDF with summary, plan overlay, photos, punch list. CSV export. |
+
+---
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| **Total Stories** | 14 |
-| **Simulation-testable** | 1-4, 11-13 |
-| **Requires hardware** | 5-10, 14 |
-| **Core navigation** | 2-4 |
-| **SDK integration** | 5-7 |
+| **Total Stories** | 9 |
+| **Simulation-testable** | 1-3, 8 |
+| **Requires hardware** | 4-7, 9 |
+| **Core navigation** | 2-3 |
+| **SDK integration** | 4 |
 
 ### Critical Path
 
-1. Setup → 2. Nav Core → 3. NavSim → 4. SLAM → 5. Sensors → 6. Loco → 7. Hello World
+1. Setup + Docker → 2. Nav + Sim → 3. SLAM → 4. Hardware → 5. Safety → 6. State Machine → 7. Capture → 8. VLM → 9. Report
 
-After Story 7, we have hardware connectivity proven. Remaining stories build on that foundation.
+After Story 4, we have hardware connectivity proven. Remaining stories build on that foundation.
+
+---
+
+## Deferred to Post-MVP
+
+- **Integration Testing Suite** - Formal end-to-end test scenarios
+- **Advanced CI/CD** - Full pipeline with integration tests
+- **Performance Benchmarks** - Automated perf validation
 
 ---
 

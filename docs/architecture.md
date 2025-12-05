@@ -234,6 +234,15 @@ std::string analyze_image(const cv::Mat& image) {
 │  │ • Analysis  │  │ • Overlay   │  │ • Pose tag  │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 │                                                                  │
+│  ┌─────────────┐                                                 │
+│  │    Plan     │                                                 │
+│  │   Manager   │                                                 │
+│  │             │                                                 │
+│  │ • PDF parse │                                                 │
+│  │ • PNG load  │                                                 │
+│  │ • Waypoints │                                                 │
+│  └─────────────┘                                                 │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -420,7 +429,65 @@ struct Defect {
 };
 ```
 
-### 4.8 State Machine
+### 4.8 Plan Manager
+
+**Handles construction plan ingestion and waypoint extraction.**
+
+```cpp
+// plan/PlanManager.h
+class PlanManager {
+public:
+    // Load plan from file (PDF or PNG)
+    bool loadPlan(const std::string& path, const std::string& trade_type = "finishes");
+
+    // Get plan as occupancy grid for navigation
+    const OccupancyGrid& getOccupancyGrid() const;
+
+    // Extract inspection waypoints from plan
+    std::vector<Point2D> getInspectionWaypoints() const;
+
+    // Set robot starting position on plan
+    void setStartPosition(Point2D position, float orientation);
+
+    // Get plan metadata
+    PlanInfo getPlanInfo() const;
+
+    // Correlate robot position to plan coordinates
+    Point2D robotToPlanCoords(Pose2D robot_pose) const;
+    Point2D planToRobotCoords(Point2D plan_point) const;
+
+private:
+    bool parsePdf(const std::string& path);
+    bool parsePng(const std::string& path);
+    void extractWalls();
+    void generateWaypoints();
+
+    cv::Mat plan_image_;
+    OccupancyGrid occupancy_grid_;
+    std::vector<Point2D> waypoints_;
+    Pose2D origin_;  // Plan origin in robot frame
+    float scale_;    // Meters per pixel
+};
+
+struct PlanInfo {
+    std::string path;
+    std::string trade_type;
+    int width_pixels;
+    int height_pixels;
+    float width_meters;
+    float height_meters;
+    int waypoint_count;
+};
+```
+
+**Plan Loading Strategy:**
+- PDF: Use poppler or similar to render to image, then process as PNG
+- PNG: Direct OpenCV load, threshold to binary for walls
+- Waypoint generation: Grid-based coverage ensuring all rooms visited
+
+---
+
+### 4.9 State Machine
 
 ```cpp
 // app/StateMachine.h
@@ -685,6 +752,8 @@ unitree-g1-robot/
 │   │   └── ReportGenerator.h/cpp   # PDF output
 │   ├── capture/
 │   │   └── ImageCapture.h/cpp      # 1fps image capture
+│   ├── plan/
+│   │   └── PlanManager.h/cpp       # Plan loading, parsing, waypoints
 │   └── util/
 │       ├── Types.h                 # Common types
 │       ├── Json.h                  # JSON helpers
@@ -839,12 +908,12 @@ ENTRYPOINT ["/app/build/g1_inspector"]
 | 6: Locomotion | LocoController |
 | 7: Hardware Hello | Connect to real robot |
 | 8: Safety | SafetyMonitor |
-| 9: State Machine + CLI | StateMachine, CLI |
+| 9: State Machine + CLI + Plan | StateMachine, CLI, PlanManager |
 | 10: Visual Capture | ImageCapture |
 | 11: VLM Detection | VlmClient |
 | 12: Report Generation | ReportGenerator |
 | 13: Integration Testing | End-to-end with sims |
-| 14: Docker Deployment | Containerization |
+| 14: Docker + CI/CD | Containerization, GitHub Actions |
 
 ---
 
