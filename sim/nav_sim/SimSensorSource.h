@@ -9,6 +9,8 @@ public:
 
     LidarScan getLidarScan() override;
     Pose2D getPose() override;
+    ImuData getImu() override;
+    float getBatteryPercent() override;
 
 private:
     NavSim& sim_;

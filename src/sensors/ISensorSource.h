@@ -13,4 +13,6 @@ public:
     virtual ~ISensorSource() = default;
     virtual LidarScan getLidarScan() = 0;
     virtual Pose2D getPose() = 0;
+    virtual ImuData getImu() = 0;
+    virtual float getBatteryPercent() = 0;
 };
