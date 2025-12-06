@@ -1003,78 +1003,6 @@ head -5 data/reports/insp_001/punch_list.csv
 
 ---
 
-## Previous Story Intelligence
-
-### From Story 1-8 (VLM Defect Detection)
-
-**Key learnings:**
-- Defects stored in `analysis_results.json` with image references
-- DefectTypes.h provides `Defect` struct and JSON serialization
-- ImageAnnotator shows pattern for color-coded annotations by severity
-- VlmClient uses existing libcurl patterns
-
-**Files to reference:**
-- `src/detection/DefectTypes.h` - Defect struct definition
-- `src/detection/ImageAnnotator.cpp` - Severity color mapping pattern
-
-**Code patterns established:**
-- `#pragma once` for headers
-- PascalCase classes, camelCase methods
-- nlohmann/json serialization with to_json/from_json
-- OpenCV for image manipulation
-
-### From Story 1-7 (Visual Capture)
-
-**Key learnings:**
-- ImageCapture saves images to `data/inspections/{session_id}/images/`
-- Each image has JSON metadata sidecar with pose information
-- `ImageCapture::loadMetadata()` static method for loading metadata
-- Session directory structure established
-
-**Files to reference:**
-- `src/capture/ImageCapture.h` - ImageMetadata struct
-
-### From Story 1-6 (State Machine + CLI)
-
-**Key learnings:**
-- CLI argument parsing pattern in main.cpp
-- PlanManager provides plan image and info
-- PlanInfo struct has all plan metadata
-
-**Files to reference:**
-- `src/plan/PlanManager.h` - PlanInfo struct
-
-### From Architecture Document
-
-**Report Generator Pattern (Section 4.8):**
-```cpp
-// PDF with: summary, plan overlay, photos, defect list, punch list
-// Template-based layout
-// Naming: inspection_<date>_<plan>.pdf
-```
-
-**Project Structure (Section 7):**
-```
-src/report/
-└── ReportGenerator.h/cpp   # PDF output
-```
-
-### Git Commit Patterns
-
-Recent commits follow pattern:
-```
-Implement story X-Y: Brief description
-
-Component provides:
-- Feature 1 (AC1)
-- Feature 2 (AC2)
-...
-
-Tests: N unit tests + E2E test
-```
-
----
-
 ## Dependencies on Previous Stories
 
 **Story 1-1 (Project Setup):**
@@ -1194,6 +1122,17 @@ None
 ### Completion Notes List
 
 - Story created by create-story workflow with comprehensive PDF generation guide
+- 2025-12-05: Validation improvements applied (validate-create-story):
+  - CRITICAL-1 FIXED: Added curl initialization warning - story does NOT require curl, must not mix with detection module
+  - CRITICAL-2 FIXED: Fixed loadInspectionReport to properly use from_json() and handle plan_location field
+  - ENHANCEMENT-1 FIXED: Added thread safety warning for libharu HPDF_Doc handles
+  - ENHANCEMENT-2 FIXED: Added empty defects handling in loadInspectionReport()
+  - ENHANCEMENT-3 FIXED: Added robust HpdfErrorState error handler pattern
+  - ENHANCEMENT-4 FIXED: Added explicit analysis_results.json format reference from Story 1-8
+  - ENHANCEMENT-5 FIXED: Added test_e2e_story_1_9 to CMake configuration
+  - OPT-1 FIXED: Added Key Function Signatures in Quick Reference
+  - OPT-2 FIXED: Consolidated Previous Story Intelligence section, removed duplicate
+  - OPT-3 FIXED: Added scripts/create_test_report_data.sh for mock test data generation
 
 ### File List
 
@@ -1204,7 +1143,9 @@ None
 - `src/report/ReportGenerator.h` - Main report generator interface
 - `src/report/ReportGenerator.cpp` - libharu PDF implementation
 - `test/test_report.cpp` - Unit tests for report generation
+- `test/test_e2e_story_1_9.sh` - End-to-end test script
+- `scripts/create_test_report_data.sh` - Mock test data generation script
 
 **Files to modify:**
-- `CMakeLists.txt` - Add `report` library and `test_report`
+- `CMakeLists.txt` - Add `report` library, `test_report`, and `test_e2e_story_1_9`
 - `src/main.cpp` - Add `--generate-report` CLI option
