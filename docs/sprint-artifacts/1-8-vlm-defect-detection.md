@@ -1,6 +1,6 @@
 # Story 1.8: VLM Defect Detection
 
-**Status:** ready-for-dev
+**Status:** Ready for Review
 
 ---
 
@@ -55,22 +55,22 @@ So that **defects are detected automatically**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Define Defect Data Structures** (AC: 2, 6)
-  - [ ] 1.1 Create `src/detection/DefectTypes.h`
+- [x] **Task 1: Define Defect Data Structures** (AC: 2, 6)
+  - [x] 1.1 Create `src/detection/DefectTypes.h`
     - `DefectType` enum: `LOCATION_ERROR`, `QUALITY_ISSUE`, `SAFETY_HAZARD`, `MISSING_ELEMENT`
     - `Defect` struct with all required fields
     - JSON serialization using nlohmann/json
-  - [ ] 1.2 Implement JSON to_json/from_json for Defect and DefectType
+  - [x] 1.2 Implement JSON to_json/from_json for Defect and DefectType
 
-- [ ] **Task 2: Implement VlmClient Class** (AC: 1, 2, 4, 5)
-  - [ ] 2.1 Create `src/detection/VlmClient.h` - VLM client interface
+- [x] **Task 2: Implement VlmClient Class** (AC: 1, 2, 4, 5)
+  - [x] 2.1 Create `src/detection/VlmClient.h` - VLM client interface
     - Constructor: `VlmClient(const std::string& api_key)`
     - `analyzeImage(const cv::Mat& image, const std::string& plan_context, const Pose2D& pose)` -> `std::vector<Defect>`
     - `setApiUrl(url)` - Override default API endpoint
     - `setModel(model)` - Set Claude model (default: claude-sonnet-4-5)
     - `setMaxRetries(n)` - Set retry count (default: 3)
     - `setTimeout(ms)` - Set HTTP timeout (default: 30000)
-  - [ ] 2.2 Create `src/detection/VlmClient.cpp` - implementation
+  - [x] 2.2 Create `src/detection/VlmClient.cpp` - implementation
     - Base64 encode image using OpenCV imencode + custom base64 encoder
     - Build JSON request body per Claude Messages API format
     - Use libcurl for HTTP POST to `https://api.anthropic.com/v1/messages`
@@ -79,47 +79,47 @@ So that **defects are detected automatically**.
     - Retry with exponential backoff on 429 (rate limit) and 5xx errors
     - Log errors but don't crash - return empty vector on failure
 
-- [ ] **Task 3: Implement Structured Prompts** (AC: 5)
-  - [ ] 3.1 Create defect detection prompt template in VlmClient
+- [x] **Task 3: Implement Structured Prompts** (AC: 5)
+  - [x] 3.1 Create defect detection prompt template in VlmClient
     - Context about construction site inspection
     - Trade-specific guidance (finishes, MEP, structural)
     - Expected defect types with examples
     - Output format specification (JSON with defect array)
     - Include robot pose for spatial context
-  - [ ] 3.2 Parse VLM response to extract structured defect data
+  - [x] 3.2 Parse VLM response to extract structured defect data
     - Handle JSON parsing errors gracefully
     - Validate required fields exist
     - Filter low-confidence detections (threshold configurable)
 
-- [ ] **Task 4: Implement ImageAnnotator Class** (AC: 3)
-  - [ ] 4.1 Create `src/detection/ImageAnnotator.h` - annotation interface
+- [x] **Task 4: Implement ImageAnnotator Class** (AC: 3)
+  - [x] 4.1 Create `src/detection/ImageAnnotator.h` - annotation interface
     - `annotateImage(cv::Mat& image, const std::vector<Defect>& defects)` - draw boxes
     - `setBoxColor(cv::Scalar)` - color for bounding boxes
     - `setFontScale(float)` - text size for labels
     - `saveAnnotatedImage(path)` - save with annotations
-  - [ ] 4.2 Create `src/detection/ImageAnnotator.cpp` - implementation
+  - [x] 4.2 Create `src/detection/ImageAnnotator.cpp` - implementation
     - Draw rectangles around defect locations
     - Add text labels with defect type and confidence
     - Color-code by severity (red=high, yellow=medium, green=low)
 
-- [ ] **Task 5: Implement Base64 Encoding** (AC: 1)
-  - [ ] 5.1 Create base64 encode function (or use existing library)
+- [x] **Task 5: Implement Base64 Encoding** (AC: 1)
+  - [x] 5.1 Create base64 encode function (or use existing library)
     - Encode cv::Mat to JPEG buffer, then to base64 string
     - Optimize for image sizes (resize if >4096px to reduce tokens)
     - JPEG quality 85 for balance of quality and size
 
-- [ ] **Task 6: Implement DetectionSim** (AC: 1, 2, 3, 7)
-  - [ ] 6.1 Create `sim/detection_sim/DetectionSim.h` - test harness
+- [x] **Task 6: Implement DetectionSim** (AC: 1, 2, 3, 7)
+  - [x] 6.1 Create `sim/detection_sim/DetectionSim.h` - test harness
     - Constructor: `DetectionSim(const std::string& test_images_dir)`
     - `run(VlmClient& client)` - process all test images
     - `evaluate(const std::string& ground_truth_json)` - compare results
     - `saveResults(const std::string& path)` - output defects.json
-  - [ ] 6.2 Create `sim/detection_sim/DetectionSim.cpp` - implementation
+  - [x] 6.2 Create `sim/detection_sim/DetectionSim.cpp` - implementation
     - Load all .jpg/.png from test_images_dir
     - Call VlmClient for each image
     - Aggregate results
     - Generate summary statistics
-  - [ ] 6.3 Create `sim/detection_sim/main.cpp` - CLI entry point
+  - [x] 6.3 Create `sim/detection_sim/main.cpp` - CLI entry point
     - `--images <dir>` - input images directory
     - `--plan <file>` - plan image for context
     - `--output <dir>` - output directory for results
@@ -128,28 +128,28 @@ So that **defects are detected automatically**.
     - `--dry-run` - Test without API calls (use mock responses)
     - `--session <dir>` - Load images from ImageCapture session directory
 
-- [ ] **Task 7: CMake Integration** (AC: 1-7)
-  - [ ] 7.1 Update `CMakeLists.txt`
+- [x] **Task 7: CMake Integration** (AC: 1-7)
+  - [x] 7.1 Update `CMakeLists.txt`
     - Add `detection` library with VlmClient.cpp, ImageAnnotator.cpp
     - Link curl, OpenCV, nlohmann_json
     - Add `detection_sim` executable
     - Add `test_detection` unit test
 
-- [ ] **Task 8: Unit Tests** (AC: 2, 4)
-  - [ ] 8.1 Create `test/test_detection.cpp`
+- [x] **Task 8: Unit Tests** (AC: 2, 4)
+  - [x] 8.1 Create `test/test_detection.cpp`
     - Test Defect JSON serialization/deserialization
     - Test VlmClient request building (mock HTTP)
     - Test retry logic with simulated failures
     - Test ImageAnnotator drawing functions
     - Test base64 encoding correctness
     - Test confidence filtering
-  - [ ] 8.2 Create `test/MockVlmClient.h` - Mock client for unit tests
+  - [x] 8.2 Create `test/MockVlmClient.h` - Mock client for unit tests
     - Inherits from VlmClient or wraps interface
     - Returns predefined defects without API calls
     - Allows testing detection pipeline without API costs
 
-- [ ] **Task 9: ImageCapture Integration** (AC: 7)
-  - [ ] 9.1 Add integration pattern for processing captured images
+- [x] **Task 9: ImageCapture Integration** (AC: 7)
+  - [x] 9.1 Add integration pattern for processing captured images
     - Load images from ImageCapture session directory
     - Parse ImageMetadata JSON for pose information
     - Batch process session images through VlmClient
@@ -1195,7 +1195,37 @@ None
   - ENHANCEMENT-6 FIXED: Added confidence filtering implementation
   - OPT: Made VlmClient methods protected for MockVlmClient inheritance
   - OPT: Added virtual destructor and analyzeImage for mocking support
+- 2025-12-06: Implementation completed (dev-story workflow):
+  - All 9 tasks implemented with 25 unit tests
+  - VlmClient: Full Claude API integration with base64 encoding, structured prompts, retry logic
+  - ImageAnnotator: Severity-based color coding (red/orange/green), bounding boxes, labels
+  - DetectionSim: CLI tool with --dry-run, --session options, JSON output
+  - All tests pass: 10/10 test suites (100% pass rate)
+  - detection_sim verified with dry-run mode producing correct defects.json and annotated images
+  - Full project builds successfully with no regressions
+- 2025-12-05: Code review fixes applied (code-review workflow):
+  - HIGH-1 FIXED: Implemented full `evaluate()` function with precision/recall/F1/IoU metrics
+  - HIGH-2 FIXED: Added E2E test script `test/test_e2e_story_1_8.sh` + registered in CMake
+  - MEDIUM-1 FIXED: Added 4 proper confidence filtering tests via TestableVlmClient helper
+  - MEDIUM-2 FIXED: Corrected base64 padding logic for all input sizes
+  - MEDIUM-3 FIXED: Added mutex-protected thread-safe curl initialization
+  - MEDIUM-4 FIXED: Added VLM response logging for debugging non-JSON outputs
 
 ### File List
 
-None - implementation pending
+**New files created:**
+- `src/detection/DefectTypes.h` - Defect struct and enum definitions
+- `src/detection/DefectTypes.cpp` - JSON serialization implementation
+- `src/detection/VlmClient.h` - VLM client interface with Claude API
+- `src/detection/VlmClient.cpp` - HTTP/curl implementation with retry logic
+- `src/detection/ImageAnnotator.h` - Image annotation interface
+- `src/detection/ImageAnnotator.cpp` - Bounding box drawing implementation
+- `sim/detection_sim/DetectionSim.h` - Test harness interface
+- `sim/detection_sim/DetectionSim.cpp` - Batch processing implementation with evaluate()
+- `sim/detection_sim/main.cpp` - CLI entry point with --dry-run support
+- `test/test_detection.cpp` - 29 unit tests for detection module (25 original + 4 confidence filtering)
+- `test/MockVlmClient.h` - Mock client for unit testing
+- `test/test_e2e_story_1_8.sh` - End-to-end test script for detection pipeline
+
+**Modified files:**
+- `CMakeLists.txt` - Added detection library, detection_sim executable, test_detection, test_e2e_story_1_8

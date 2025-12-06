@@ -96,6 +96,23 @@ target_link_libraries(capture
 )
 
 # ============================================
+# Detection (Story 1-8)
+# ============================================
+
+# Detection library (VlmClient, ImageAnnotator, DefectTypes)
+add_library(detection
+    src/detection/VlmClient.cpp
+    src/detection/ImageAnnotator.cpp
+    src/detection/DefectTypes.cpp
+)
+target_include_directories(detection PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(detection
+    ${OpenCV_LIBS}
+    ${CURL_LIBRARIES}
+    nlohmann_json::nlohmann_json
+)
+
+# ============================================
 # Application (Story 1-6)
 # ============================================
 
@@ -161,6 +178,7 @@ target_link_libraries(g1_inspector
     plan
     app
     capture
+    detection
     ${OpenCV_LIBS}
     ${CURL_LIBRARIES}
     ${HPDF_LIBRARY}
@@ -200,6 +218,18 @@ add_executable(slam_sim
 target_link_libraries(slam_sim
     slam
     nav_sim_lib
+    ${OpenCV_LIBS}
+    nlohmann_json::nlohmann_json
+)
+
+# DetectionSim executable (Story 1-8)
+add_executable(detection_sim
+    sim/detection_sim/DetectionSim.cpp
+    sim/detection_sim/main.cpp
+)
+target_link_libraries(detection_sim
+    detection
+    plan
     ${OpenCV_LIBS}
     nlohmann_json::nlohmann_json
 )
@@ -271,6 +301,15 @@ if(GTest_FOUND)
     add_test(NAME test_capture COMMAND test_capture
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+    # Detection unit tests (Story 1-8)
+    add_executable(test_detection test/test_detection.cpp)
+    target_link_libraries(test_detection
+        detection
+        GTest::gtest_main
+    )
+    add_test(NAME test_detection COMMAND test_detection
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
     # End-to-end test for Story 1-6
     add_test(NAME test_e2e_story_1_6
         COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_6.sh
@@ -280,6 +319,12 @@ if(GTest_FOUND)
     # End-to-end test for Story 1-7 (Visual Capture)
     add_test(NAME test_e2e_story_1_7
         COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_7.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+
+    # End-to-end test for Story 1-8 (VLM Defect Detection)
+    add_test(NAME test_e2e_story_1_8
+        COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_8.sh
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
 else()
