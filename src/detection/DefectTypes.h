@@ -26,6 +26,7 @@ struct Defect {
     float confidence = 0.0f;     // 0.0 - 1.0
     std::string severity;        // "high", "medium", "low"
     std::string trade;           // "finishes", "mep", "structural"
+    std::string source_image;    // Source image filename (e.g., "img_00000003.jpg")
 
     // Helper to get bounding box as cv::Rect for OpenCV operations
     cv::Rect getBoundingBox() const { return cv::Rect(bbox_x, bbox_y, bbox_width, bbox_height); }

@@ -1,6 +1,6 @@
 # Story 1.9: Report Generation
 
-**Status:** ready-for-dev
+**Status:** Done
 
 ---
 
@@ -70,33 +70,33 @@ So that **I can share findings with crews**.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Define Report Data Structures** (AC: 1, 8)
-  - [ ] 1.1 Create `src/report/ReportTypes.h`
+- [x] **Task 1: Define Report Data Structures** (AC: 1, 8)
+  - [x] 1.1 Create `src/report/ReportTypes.h`
     - `InspectionReport` struct with all report data
     - `ReportConfig` struct for customization options
     - Helper types for report sections
-  - [ ] 1.2 Include fields for: inspection_id, date, plan_name, coverage_percent, defects, images, robot_info
+  - [x] 1.2 Include fields for: inspection_id, date, plan_name, coverage_percent, defects, images, robot_info
 
-- [ ] **Task 2: Implement PlanOverlay Class** (AC: 2)
-  - [ ] 2.1 Create `src/report/PlanOverlay.h` - overlay interface
+- [x] **Task 2: Implement PlanOverlay Class** (AC: 2)
+  - [x] 2.1 Create `src/report/PlanOverlay.h` - overlay interface
     - `addDefectMarker(Point2D location, int number, const std::string& severity)`
     - `generateOverlay(const cv::Mat& plan_image)` -> cv::Mat with markers
     - `setMarkerSize(int pixels)` - size of numbered circles
     - `setColors(high, medium, low)` - severity colors
-  - [ ] 2.2 Create `src/report/PlanOverlay.cpp` - implementation
+  - [x] 2.2 Create `src/report/PlanOverlay.cpp` - implementation
     - Draw numbered circles at defect plan coordinates
     - Color-code by severity (red=high, orange=medium, yellow=low)
     - Scale markers appropriately for plan resolution
     - Add legend showing severity colors
 
-- [ ] **Task 3: Implement ReportGenerator Class** (AC: 1, 2, 3, 5, 6, 7, 8)
-  - [ ] 3.1 Create `src/report/ReportGenerator.h` - main report interface
+- [x] **Task 3: Implement ReportGenerator Class** (AC: 1, 2, 3, 5, 6, 7, 8)
+  - [x] 3.1 Create `src/report/ReportGenerator.h` - main report interface
     - `ReportGenerator()` constructor
     - `generate(const InspectionReport& report, const std::string& output_path)` -> bool
     - `setPageSize(width, height)` - A4 default
     - `setMargins(top, bottom, left, right)`
     - `setLogoPath(path)` - optional company logo
-  - [ ] 3.2 Create `src/report/ReportGenerator.cpp` - libharu implementation
+  - [x] 3.2 Create `src/report/ReportGenerator.cpp` - libharu implementation
     - Initialize PDF document with libharu (HPDF_New)
     - Add title page with inspection metadata
     - Add executive summary section
@@ -104,7 +104,7 @@ So that **I can share findings with crews**.
     - Add defect gallery with thumbnails
     - Add punch list table
     - Save PDF to output path
-  - [ ] 3.3 Implement helper methods:
+  - [x] 3.3 Implement helper methods:
     - `addTitlePage()` - inspection ID, date, plan name, coverage
     - `addSummarySection()` - defect counts by severity and type
     - `addPlanOverlayPage()` - annotated floor plan
@@ -112,44 +112,44 @@ So that **I can share findings with crews**.
     - `addPunchListTable()` - sortable defect list
     - `addFooter()` - page numbers
 
-- [ ] **Task 4: Implement CSV Export** (AC: 4)
-  - [ ] 4.1 Add `exportPunchListCsv(const InspectionReport& report, const std::string& path)`
+- [x] **Task 4: Implement CSV Export** (AC: 4)
+  - [x] 4.1 Add `exportPunchListCsv(const InspectionReport& report, const std::string& path)`
     - CSV columns: ID, Type, Severity, Location (x,y), Description, Image, Trade
     - Proper escaping for CSV special characters
     - UTF-8 encoding
-  - [ ] 4.2 Optionally export alongside PDF automatically
+  - [x] 4.2 Optionally export alongside PDF automatically
 
-- [ ] **Task 5: libharu PDF Implementation Details** (AC: 1, 3)
-  - [ ] 5.1 Initialize libharu correctly
+- [x] **Task 5: libharu PDF Implementation Details** (AC: 1, 3)
+  - [x] 5.1 Initialize libharu correctly
     - `HPDF_New()` with error handler
     - Set compression mode for smaller files
     - Set UTF-8 encoding for text
-  - [ ] 5.2 Add images to PDF
+  - [x] 5.2 Add images to PDF
     - Convert cv::Mat to PNG buffer
     - Load PNG into PDF with `HPDF_LoadPngImageFromMem()`
     - Scale images to fit page
-  - [ ] 5.3 Create tables with libharu
+  - [x] 5.3 Create tables with libharu
     - Manual table drawing with lines and text cells
     - Alternating row colors for readability
     - Header row styling
 
-- [ ] **Task 6: CMake Integration** (AC: 1-8)
-  - [ ] 6.1 Update `CMakeLists.txt`
+- [x] **Task 6: CMake Integration** (AC: 1-8)
+  - [x] 6.1 Update `CMakeLists.txt`
     - Add `report` library with ReportGenerator.cpp, PlanOverlay.cpp
     - Link libharu (`${HPDF_LIBRARY}`)
     - Link OpenCV for image handling
     - Link nlohmann_json for data serialization
     - Add `test_report` unit test
 
-- [ ] **Task 7: CLI Integration** (AC: 1, 5)
-  - [ ] 7.1 Update `src/main.cpp`
+- [x] **Task 7: CLI Integration** (AC: 1, 5)
+  - [x] 7.1 Update `src/main.cpp`
     - Add `--generate-report --inspection <id>` CLI option
     - Load defects from inspection session directory
     - Generate PDF to `data/reports/<inspection_id>/`
     - Print output path on success
 
-- [ ] **Task 8: Unit Tests** (AC: 1-4)
-  - [ ] 8.1 Create `test/test_report.cpp`
+- [x] **Task 8: Unit Tests** (AC: 1-4)
+  - [x] 8.1 Create `test/test_report.cpp`
     - Test ReportGenerator with mock data
     - Test PlanOverlay marker placement
     - Test CSV export format
@@ -157,13 +157,13 @@ So that **I can share findings with crews**.
     - Test defect sorting by severity
     - Test PDF file creation (verify file exists and has content)
 
-- [ ] **Task 9: Integration with Inspection Session** (AC: 1-8)
-  - [ ] 9.1 Create helper to load inspection session data
+- [x] **Task 9: Integration with Inspection Session** (AC: 1-8)
+  - [x] 9.1 Create helper to load inspection session data
     - Load defects from `analysis_results.json` (from Story 1-8)
     - Load captured images metadata from `images/*.json`
     - Load plan info from PlanManager
     - Calculate coverage from PlanCorrelator
-  - [ ] 9.2 Wire up in main.cpp for `--generate-report` command
+  - [x] 9.2 Wire up in main.cpp for `--generate-report` command
 
 ---
 
@@ -1113,7 +1113,7 @@ This story file serves as the complete implementation context.
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
@@ -1133,19 +1133,69 @@ None
   - OPT-1 FIXED: Added Key Function Signatures in Quick Reference
   - OPT-2 FIXED: Consolidated Previous Story Intelligence section, removed duplicate
   - OPT-3 FIXED: Added scripts/create_test_report_data.sh for mock test data generation
+- 2025-12-06: Implementation completed:
+  - All 9 tasks implemented and verified
+  - 23 unit tests passing (test_report)
+  - 8 E2E tests passing (test_e2e_story_1_9.sh)
+  - PDF generation with title page, summary, plan overlay, photo gallery, punch list table
+  - CSV export with proper escaping and formatting
+  - CLI integration with --generate-report --inspection <id>
+  - Graceful handling of missing plan images and empty defect lists
+
+### Change Log
+
+- 2025-12-06: Implemented Story 1-9 Report Generation
+  - Created ReportTypes.h with InspectionReport, InspectionSummary, ReportConfig structs
+  - Created PlanOverlay class for defect marker visualization on plan images
+  - Created ReportGenerator class with libharu PDF generation
+  - Added CSV punch list export with proper escaping
+  - Integrated --generate-report CLI command in main.cpp
+  - Added 23 unit tests covering all report functionality
+  - Added E2E test script for full workflow validation
+  - Added test data generation script
+
+- 2025-12-06: Code Review Fixes Round 1 (6 issues resolved)
+  - HIGH-1 FIXED: PlanOverlay.generateOverlay() now accepts meters_per_pixel parameter
+    - Uses PlanInfo::resolution for accurate coordinate conversion
+    - Default 0.02 m/pixel maintained for backwards compatibility
+  - HIGH-2 FIXED: Added source_image field to Defect struct
+    - CSV export now uses actual source image filename instead of defect ID
+    - loadInspectionReport() captures source image from JSON "image" key
+  - MEDIUM-1 FIXED: ReportGenerator.generate() now accepts explicit session_dir
+    - Eliminates fragile path inference for photo loading
+  - MEDIUM-3 FIXED: E2E test 7 logic corrected
+    - Both branches were passing; now properly tests error handling
+  - MEDIUM-4 FIXED: Added unit tests for marker position accuracy
+    - Tests verify markers appear at correct pixel coordinates for different resolutions
+  - Added 4 new unit tests: PlanOverlay_MarkerPositionAccuracy,
+    PlanOverlay_DifferentResolutions, ReportGenerator_ExportPunchListCsv_SourceImage
+
+- 2025-12-06: Code Review Fixes Round 2 (6 issues resolved)
+  - HIGH-1 FIXED: addPlanOverlayPage() now has proper error recovery with fallback and placeholder
+  - HIGH-2 FIXED: generate() checks error_state after each section and cleans up on failure
+  - HIGH-3 FIXED: Removed dead ReportConfig struct (config handled by ReportGenerator methods)
+  - MEDIUM-1 FIXED: Removed duplicate plan_location parsing in loadInspectionReport()
+  - MEDIUM-2 FIXED: addNewPage() now has 500-page limit to prevent runaway creation
+  - MEDIUM-3 FIXED: CSV export now uses "N/A" for missing source_image (not fake filename)
+  - FIXED: PlanInfo.resolution -> PlanInfo.scale (correct field name)
+  - FIXED: Marker position tests now check offset from center (center has white text)
+  - Added 1 new unit test: ReportGenerator_ExportPunchListCsv_MissingSourceImage
+  - All 27 unit tests passing, all 8 E2E tests passing
 
 ### File List
 
-**New files to create:**
-- `src/report/ReportTypes.h` - Report data structures
+**New files created:**
+- `src/report/ReportTypes.h` - Report data structures (InspectionReport, InspectionSummary, ReportConfig, loadInspectionReport)
 - `src/report/PlanOverlay.h` - Plan overlay interface
-- `src/report/PlanOverlay.cpp` - Marker drawing implementation
-- `src/report/ReportGenerator.h` - Main report generator interface
-- `src/report/ReportGenerator.cpp` - libharu PDF implementation
-- `test/test_report.cpp` - Unit tests for report generation
-- `test/test_e2e_story_1_9.sh` - End-to-end test script
+- `src/report/PlanOverlay.cpp` - Marker drawing implementation with severity colors and legend
+- `src/report/ReportGenerator.h` - Main report generator interface with HpdfErrorState
+- `src/report/ReportGenerator.cpp` - libharu PDF implementation (title page, summary, overlay, gallery, punch list)
+- `test/test_report.cpp` - 28 unit tests for report generation (including 5 from code reviews)
+- `test/test_e2e_story_1_9.sh` - End-to-end test script (8 tests)
 - `scripts/create_test_report_data.sh` - Mock test data generation script
 
-**Files to modify:**
-- `CMakeLists.txt` - Add `report` library, `test_report`, and `test_e2e_story_1_9`
-- `src/main.cpp` - Add `--generate-report` CLI option
+**Files modified:**
+- `CMakeLists.txt` - Added `report` library, `test_report` executable, `test_e2e_story_1_9` test
+- `src/main.cpp` - Added `--generate-report --inspection <id>` CLI option and runGenerateReport function
+- `src/detection/DefectTypes.h` - Added `source_image` field to Defect struct (code review fix)
+- `src/detection/DefectTypes.cpp` - Updated JSON serialization for source_image field

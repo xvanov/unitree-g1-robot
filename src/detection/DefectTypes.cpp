@@ -33,7 +33,8 @@ void to_json(nlohmann::json& j, const Defect& d) {
         {"plan_location", {{"x", d.plan_loc.x}, {"y", d.plan_loc.y}}},
         {"confidence", d.confidence},
         {"severity", d.severity},
-        {"trade", d.trade}
+        {"trade", d.trade},
+        {"source_image", d.source_image}
     };
 }
 
@@ -61,4 +62,6 @@ void from_json(const nlohmann::json& j, Defect& d) {
         d.plan_loc.x = j["plan_location"].value("x", 0.0f);
         d.plan_loc.y = j["plan_location"].value("y", 0.0f);
     }
+
+    d.source_image = j.value("source_image", "");
 }

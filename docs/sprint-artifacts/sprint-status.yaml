@@ -46,5 +46,5 @@ development_status:
   1-6-state-machine-cli-plan-management: done
   1-7-visual-capture: review
   1-8-vlm-defect-detection: review
-  1-9-report-generation: ready-for-dev
+  1-9-report-generation: review
   epic-1-retrospective: optional

@@ -113,6 +113,25 @@ target_link_libraries(detection
 )
 
 # ============================================
+# Report Generation (Story 1-9)
+# ============================================
+
+# Report library (ReportGenerator, PlanOverlay)
+add_library(report
+    src/report/ReportGenerator.cpp
+    src/report/PlanOverlay.cpp
+)
+target_include_directories(report PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(report
+    detection    # For Defect types
+    capture      # For ImageMetadata
+    plan         # For PlanInfo
+    ${OpenCV_LIBS}
+    ${HPDF_LIBRARY}
+    nlohmann_json::nlohmann_json
+)
+
+# ============================================
 # Application (Story 1-6)
 # ============================================
 
@@ -179,6 +198,7 @@ target_link_libraries(g1_inspector
     app
     capture
     detection
+    report
     ${OpenCV_LIBS}
     ${CURL_LIBRARIES}
     ${HPDF_LIBRARY}
@@ -325,6 +345,21 @@ if(GTest_FOUND)
     # End-to-end test for Story 1-8 (VLM Defect Detection)
     add_test(NAME test_e2e_story_1_8
         COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_8.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+
+    # Report unit tests (Story 1-9)
+    add_executable(test_report test/test_report.cpp)
+    target_link_libraries(test_report
+        report
+        GTest::gtest_main
+    )
+    add_test(NAME test_report COMMAND test_report
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # End-to-end test for Story 1-9 (Report Generation)
+    add_test(NAME test_e2e_story_1_9
+        COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_1_9.sh
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
 else()

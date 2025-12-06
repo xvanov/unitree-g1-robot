@@ -17,6 +17,8 @@
 #include "plan/PlanManager.h"
 #include "capture/ImageCapture.h"
 #include "capture/PlanCorrelator.h"
+#include "report/ReportGenerator.h"
+#include "report/ReportTypes.h"
 
 constexpr const char* VERSION = "G1 Inspector v1.0";
 
@@ -47,6 +49,8 @@ void printUsage() {
               << "  --test-wave          Arm wave test (robot waves hand)\n"
               << "  --test-safety        Run safety system diagnostics\n"
               << "  --hello-world        Full integration test sequence\n"
+              << "  --generate-report    Generate PDF report from inspection session\n"
+              << "  --inspection <id>    Inspection session ID (for --generate-report)\n"
               << "\nCLI Commands (can be run directly or in interactive mode):\n"
               << "  status               Show current state\n"
               << "  start                Start inspection\n"
@@ -63,6 +67,7 @@ void printUsage() {
               << "  g1_inspector --interactive           Start interactive CLI\n"
               << "  g1_inspector status                  Show status and exit\n"
               << "  g1_inspector upload --plan floor.png Load plan and exit\n"
+              << "  g1_inspector --generate-report --inspection insp_001  Generate report\n"
               << std::endl;
 }
 
@@ -477,6 +482,61 @@ int runHelloWorld(const std::string& interface) {
 #endif
 }
 
+int runGenerateReport(const std::string& inspection_id) {
+    std::cout << "\n=== Report Generation ===" << std::endl;
+
+    std::string session_dir = "data/inspections/" + inspection_id;
+    if (!std::filesystem::exists(session_dir)) {
+        std::cerr << "[ERROR] Inspection session not found: " << session_dir << std::endl;
+        return 1;
+    }
+
+    // Load inspection data
+    InspectionReport report;
+    PlanManager plan_mgr;
+
+    // Try to load plan if available
+    std::string plan_path = session_dir + "/plan.png";
+    if (std::filesystem::exists(plan_path)) {
+        if (plan_mgr.loadPlan(plan_path)) {
+            std::cout << "[REPORT] Loaded plan from session" << std::endl;
+        }
+    }
+
+    if (!loadInspectionReport(session_dir, report, &plan_mgr)) {
+        std::cerr << "[ERROR] Failed to load inspection data" << std::endl;
+        return 1;
+    }
+
+    std::cout << "[REPORT] Loaded session: " << report.inspection_id << std::endl;
+    std::cout << "[REPORT] Defects found: " << report.summary.total_defects << std::endl;
+    std::cout << "[REPORT] Images captured: " << report.images_captured << std::endl;
+
+    // Generate report
+    ReportGenerator generator;
+    std::string output_dir = "data/reports/" + inspection_id;
+    std::filesystem::create_directories(output_dir);
+
+    // Pass session_dir explicitly for photo loading
+    if (generator.generate(report, output_dir, session_dir)) {
+        std::string pdf_name = ReportGenerator::generateFilename(
+            report.inspection_id, report.plan_name, report.date);
+        std::cout << "[REPORT] PDF generated: " << output_dir << "/" << pdf_name << std::endl;
+
+        // Also export CSV
+        std::string csv_path = output_dir + "/punch_list.csv";
+        if (ReportGenerator::exportPunchListCsv(report, csv_path)) {
+            std::cout << "[REPORT] Punch list: " << csv_path << std::endl;
+        }
+
+        std::cout << "\n=== Report Generation Complete ===" << std::endl;
+        return 0;
+    } else {
+        std::cerr << "[ERROR] Report generation failed: " << generator.getLastError() << std::endl;
+        return 1;
+    }
+}
+
 int runCli(bool interactive, const std::string& singleCommand, const std::string& interface) {
     // Initialize components
     auto state_machine = std::make_shared<StateMachine>();
@@ -612,6 +672,8 @@ int main(int argc, char* argv[]) {
     bool testSafety = false;
     bool helloWorld = false;
     bool interactive = false;
+    bool generateReport = false;
+    std::string reportInspectionId;
     std::string singleCommand;
 
     // Parse command line arguments
@@ -668,6 +730,21 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        if (arg == "--generate-report") {
+            generateReport = true;
+            continue;
+        }
+
+        if (arg == "--inspection") {
+            if (i + 1 < argc) {
+                reportInspectionId = argv[++i];
+            } else {
+                std::cerr << "Error: --inspection requires an ID argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
         // Check if this is a CLI command (doesn't start with -)
         if (!arg.empty() && arg[0] != '-') {
             // Capture this and all remaining args as a single command
@@ -703,6 +780,15 @@ int main(int argc, char* argv[]) {
 
     if (helloWorld) {
         return runHelloWorld(interface);
+    }
+
+    // Run report generation
+    if (generateReport) {
+        if (reportInspectionId.empty()) {
+            std::cerr << "Error: --generate-report requires --inspection <id>" << std::endl;
+            return 1;
+        }
+        return runGenerateReport(reportInspectionId);
     }
 
     // Run CLI mode
