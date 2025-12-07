@@ -50,6 +50,8 @@ void printUsage() {
               << "  --robot-ip <ip>      Robot IP for video stream (e.g., 192.168.123.233)\n"
               << "  --video-source <src> Video source: 'dds' (default), 'gstreamer', 'local', 'none'\n"
               << "  --depth-port <port>  Enable depth streaming on port (e.g., 5001). Robot must run depth_stream_server\n"
+              << "  --webcam-port <port> Enable webcam streaming on port (e.g., 5002). Robot must run webcam_stream_server\n"
+              << "  --no-lidar           Disable Livox LiDAR initialization (for WiFi networks)\n"
               << "  --no-auto-stream     Don't auto-start video stream on robot (GStreamer only)\n"
               << "  --dry-run            Skip robot connection (test camera/UI only)\n"
               << "  --record <session>   Enable recording during teleop (requires --teleop)\n"
@@ -712,6 +714,8 @@ int main(int argc, char* argv[]) {
     // Video source option
     std::string videoSource = "dds";  // Default to DDS
     int depthPort = 0;  // 0 = disabled, e.g., 5001 to enable
+    int webcamPort = 0;  // 0 = disabled, e.g., 5002 to enable
+    bool noLidar = false;  // Skip Livox LiDAR initialization
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -807,6 +811,11 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        if (arg == "--no-lidar") {
+            noLidar = true;
+            continue;
+        }
+
         if (arg == "--robot-ip") {
             if (i + 1 < argc) {
                 robotIP = argv[++i];
@@ -841,6 +850,20 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 std::cerr << "Error: --depth-port requires a port number argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--webcam-port") {
+            if (i + 1 < argc) {
+                webcamPort = std::stoi(argv[++i]);
+                if (webcamPort < 0 || webcamPort > 65535) {
+                    std::cerr << "Error: --webcam-port must be between 0 and 65535" << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --webcam-port requires a port number argument" << std::endl;
                 return 1;
             }
             continue;
@@ -967,6 +990,14 @@ int main(int argc, char* argv[]) {
 
         if (depthPort > 0) {
             runner.setDepthPort(depthPort);
+        }
+
+        if (webcamPort > 0) {
+            runner.setWebcamPort(webcamPort);
+        }
+
+        if (noLidar) {
+            runner.setNoLidar(true);
         }
 
         if (!robotIP.empty()) {

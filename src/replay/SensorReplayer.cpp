@@ -79,7 +79,8 @@ bool SensorReplayer::open(const std::string& recording_path) {
               << " IMU=" << metadata_.imu_count
               << " Pose=" << metadata_.pose_count
               << " Image=" << metadata_.image_count
-              << " Video=" << metadata_.video_frame_count << std::endl;
+              << " Video=" << metadata_.video_frame_count
+              << " Depth=" << metadata_.depth_frame_count << std::endl;
 
     return true;
 }
@@ -126,6 +127,7 @@ bool SensorReplayer::loadMetadata(const std::string& metadata_path) {
             metadata_.image_count = counts.value("image", uint32_t(0));
             metadata_.teleop_count = counts.value("teleop", uint32_t(0));
             metadata_.video_frame_count = counts.value("video_frame", uint32_t(0));
+            metadata_.depth_frame_count = counts.value("depth_frame", uint32_t(0));
         }
 
         // File stats
@@ -599,6 +601,53 @@ bool SensorReplayer::decodeVideoFrame(const ReplayMessage& msg, DecodedVideoFram
         return true;
     } catch (const std::exception& e) {
         std::cerr << "[REPLAYER] VideoFrame decode error: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool SensorReplayer::decodeDepthFrame(const ReplayMessage& msg, DecodedDepthFrame& out) {
+    if (msg.type != recording::MessageType::DEPTH_FRAME || msg.payload.empty()) {
+        return false;
+    }
+
+    try {
+        msgpack::object_handle oh = msgpack::unpack(
+            reinterpret_cast<const char*>(msg.payload.data()), msg.payload.size());
+        msgpack::object obj = oh.get();
+
+        auto map = obj.as<std::map<std::string, msgpack::object>>();
+
+        if (map.count("frame")) {
+            out.frame_number = map["frame"].as<uint32_t>();
+        }
+        if (map.count("fx")) {
+            out.fx = map["fx"].as<float>();
+        }
+        if (map.count("fy")) {
+            out.fy = map["fy"].as<float>();
+        }
+        if (map.count("cx")) {
+            out.cx = map["cx"].as<float>();
+        }
+        if (map.count("cy")) {
+            out.cy = map["cy"].as<float>();
+        }
+        if (map.count("scale")) {
+            out.depth_scale = map["scale"].as<float>();
+        }
+        if (map.count("color")) {
+            auto bin = map["color"].as<msgpack::type::raw_ref>();
+            out.color_jpeg.assign(bin.ptr, bin.ptr + bin.size);
+        }
+        if (map.count("depth")) {
+            auto bin = map["depth"].as<msgpack::type::raw_ref>();
+            out.depth_png.assign(bin.ptr, bin.ptr + bin.size);
+        }
+
+        out.timestamp_us = msg.timestamp_us;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[REPLAYER] DepthFrame decode error: " << e.what() << std::endl;
         return false;
     }
 }

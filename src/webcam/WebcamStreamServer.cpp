@@ -25,13 +25,13 @@ bool WebcamStreamServer::init(const std::string& device) {
         return false;
     }
 
+    // Use MJPEG format first (required for higher resolutions on many cameras)
+    capture_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+
     // Set resolution and framerate
     capture_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
     capture_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
     capture_.set(cv::CAP_PROP_FPS, fps_);
-
-    // Use MJPEG format if available (more efficient)
-    capture_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
 
     initialized_.store(true);
 
@@ -52,13 +52,13 @@ bool WebcamStreamServer::init(int device_index) {
         return false;
     }
 
+    // Use MJPEG format first (required for higher resolutions on many cameras)
+    capture_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+
     // Set resolution and framerate
     capture_.set(cv::CAP_PROP_FRAME_WIDTH, width_);
     capture_.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
     capture_.set(cv::CAP_PROP_FPS, fps_);
-
-    // Use MJPEG format if available
-    capture_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
 
     initialized_.store(true);
 

@@ -1,6 +1,7 @@
 #include "teleop/KeyboardTeleop.h"
 #include "teleop/DDSVideoClient.h"
 #include "depth/DepthStreamServer.h"  // For DepthStreamClient
+#include "webcam/WebcamStreamServer.h"  // For WebcamStreamClient
 #include "sensors/SensorManager.h"
 #include "locomotion/LocoController.h"
 #include "recording/SensorRecorder.h"
@@ -20,6 +21,9 @@ KeyboardTeleop::KeyboardTeleop(SensorManager* sensors, LocoController* loco,
 }
 
 KeyboardTeleop::~KeyboardTeleop() {
+    if (webcam_client_) {
+        webcam_client_->stop();
+    }
     if (depth_client_) {
         depth_client_->stop();
     }
@@ -39,6 +43,11 @@ void KeyboardTeleop::run() {
     // This must happen before DDS video since they compete for the same camera
     if (depth_port_ > 0) {
         initDepthStream();
+    }
+
+    // Initialize webcam stream if enabled
+    if (webcam_port_ > 0) {
+        initWebcamStream();
     }
 
     // Initialize video source (will be used as fallback if depth not available)
@@ -82,26 +91,46 @@ void KeyboardTeleop::run() {
         // Draw overlay
         drawOverlay(frame);
 
-        // Create display frame - side by side if depth available
+        // Create display frame - side by side for all available streams
         cv::Mat display_frame;
+        std::vector<cv::Mat> frames_to_concat;
+
+        // Add RGB frame (with overlay already applied)
+        frames_to_concat.push_back(frame);
+
+        // Add depth if available
         if (depth_available_ && !last_depth_color_.empty()) {
-            // Resize depth to match color frame height
             cv::Mat depth_resized;
             if (last_depth_color_.rows != frame.rows) {
                 double scale = static_cast<double>(frame.rows) / last_depth_color_.rows;
                 cv::resize(last_depth_color_, depth_resized, cv::Size(), scale, scale);
             } else {
-                depth_resized = last_depth_color_;
+                depth_resized = last_depth_color_.clone();
             }
-
-            // Add label to depth
             cv::putText(depth_resized, "DEPTH", cv::Point(10, 30),
                        cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+            frames_to_concat.push_back(depth_resized);
+        }
 
-            // Concatenate side by side
-            cv::hconcat(frame, depth_resized, display_frame);
+        // Add webcam if available
+        if (webcam_available_ && !last_webcam_.empty()) {
+            cv::Mat webcam_resized;
+            if (last_webcam_.rows != frame.rows) {
+                double scale = static_cast<double>(frame.rows) / last_webcam_.rows;
+                cv::resize(last_webcam_, webcam_resized, cv::Size(), scale, scale);
+            } else {
+                webcam_resized = last_webcam_.clone();
+            }
+            cv::putText(webcam_resized, "WEBCAM", cv::Point(10, 30),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+            frames_to_concat.push_back(webcam_resized);
+        }
+
+        // Concatenate all frames side by side
+        if (frames_to_concat.size() == 1) {
+            display_frame = frames_to_concat[0];
         } else {
-            display_frame = frame;
+            cv::hconcat(frames_to_concat, display_frame);
         }
 
         // Show frame
@@ -401,6 +430,39 @@ bool KeyboardTeleop::initDepthStream() {
     return true;  // Not a fatal error
 }
 
+bool KeyboardTeleop::initWebcamStream() {
+    if (webcam_port_ <= 0) {
+        return false;
+    }
+
+    std::cout << "[TELEOP] Initializing webcam stream on port " << webcam_port_ << std::endl;
+
+    webcam_client_ = std::make_unique<WebcamStreamClient>();
+    if (!webcam_client_->start(webcam_port_)) {
+        std::cerr << "[TELEOP] Failed to start webcam client on port " << webcam_port_ << std::endl;
+        webcam_client_.reset();
+        return false;
+    }
+
+    // Wait briefly for first frame
+    std::cout << "[TELEOP] Waiting for webcam stream..." << std::endl;
+    for (int i = 0; i < 30; i++) {  // Wait up to 3 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        auto frame = webcam_client_->getLatestFrame();
+        if (frame.valid) {
+            webcam_available_ = true;
+            std::cout << "[TELEOP] Webcam stream connected: " << frame.image.cols << "x" << frame.image.rows << std::endl;
+            return true;
+        }
+    }
+
+    std::cout << "[TELEOP] Timeout waiting for webcam stream" << std::endl;
+    std::cout << "[TELEOP] Is webcam-stream.service running on robot?" << std::endl;
+    // Keep client running - it might connect later
+    webcam_available_ = false;
+    return true;  // Not a fatal error
+}
+
 bool KeyboardTeleop::updateCamera() {
     bool got_video = false;
 
@@ -482,6 +544,15 @@ bool KeyboardTeleop::updateCamera() {
             }
 
             got_video = true;
+        }
+    }
+
+    // Update webcam stream (independent of other video sources)
+    if (webcam_client_) {
+        auto webcam_frame = webcam_client_->getLatestFrame();
+        if (webcam_frame.valid && !webcam_frame.image.empty()) {
+            last_webcam_ = webcam_frame.image.clone();
+            webcam_available_ = true;
         }
     }
 

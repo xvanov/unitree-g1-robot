@@ -1,8 +1,15 @@
 #include "sensors/LivoxLidar.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <regex>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 #ifdef HAS_LIVOX_SDK2
 #include "livox_lidar_api.h"
@@ -19,6 +26,78 @@ namespace {
 
     // Global instance pointer for C callbacks
     LivoxLidar* g_instance = nullptr;
+
+    // Get the local IP address on the 192.168.123.x subnet
+    std::string getLocalIPOnSubnet() {
+        struct ifaddrs* ifaddr = nullptr;
+        if (getifaddrs(&ifaddr) == -1) {
+            return "";
+        }
+
+        std::string result;
+        for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+            if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_INET) {
+                continue;
+            }
+
+            char ip[INET_ADDRSTRLEN];
+            struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr);
+            inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
+
+            std::string ip_str(ip);
+            // Check if on 192.168.123.x subnet
+            if (ip_str.find("192.168.123.") == 0) {
+                result = ip_str;
+                break;
+            }
+        }
+
+        freeifaddrs(ifaddr);
+        return result;
+    }
+
+    // Update the host_ip in the Livox config file to match our current IP
+    // Returns path to the updated temp config, or empty string on failure
+    std::string updateConfigWithLocalIP(const std::string& original_config) {
+        std::string local_ip = getLocalIPOnSubnet();
+        if (local_ip.empty()) {
+            std::cerr << "[LIVOX] Could not find local IP on 192.168.123.x subnet" << std::endl;
+            return "";
+        }
+
+        std::cout << "[LIVOX] Local IP on robot subnet: " << local_ip << std::endl;
+
+        // Read the original config
+        std::ifstream in(original_config);
+        if (!in.is_open()) {
+            std::cerr << "[LIVOX] Cannot read config: " << original_config << std::endl;
+            return "";
+        }
+
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        std::string config_content = buffer.str();
+        in.close();
+
+        // Replace host_ip value using regex
+        // Match: "host_ip" : "192.168.123.xxx"
+        std::regex host_ip_regex(R"("host_ip"\s*:\s*"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+")");
+        std::string replacement = "\"host_ip\" : \"" + local_ip + "\"";
+        std::string updated_content = std::regex_replace(config_content, host_ip_regex, replacement);
+
+        // Write to temp file
+        std::string temp_path = "/tmp/livox_config_" + std::to_string(getpid()) + ".json";
+        std::ofstream out(temp_path);
+        if (!out.is_open()) {
+            std::cerr << "[LIVOX] Cannot write temp config: " << temp_path << std::endl;
+            return "";
+        }
+        out << updated_content;
+        out.close();
+
+        std::cout << "[LIVOX] Updated config with host_ip=" << local_ip << " -> " << temp_path << std::endl;
+        return temp_path;
+    }
 
 #ifdef HAS_LIVOX_SDK2
     // C-style callback functions for Livox SDK (must be plain functions, not lambdas)
@@ -105,6 +184,12 @@ bool LivoxLidar::init(const std::string& config_path) {
     // can crash with relative paths due to internal file handling
     cfg_path = std::filesystem::absolute(cfg_path).string();
     std::cout << "[LIVOX] Using config: " << cfg_path << std::endl;
+
+    // Update config with our current IP address (enables WiFi operation)
+    std::string updated_cfg = updateConfigWithLocalIP(cfg_path);
+    if (!updated_cfg.empty()) {
+        cfg_path = updated_cfg;
+    }
 
     // Verify config file is readable
     FILE* test_file = std::fopen(cfg_path.c_str(), "rb");

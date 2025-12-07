@@ -104,7 +104,7 @@ bool TeleopRunner::initHardware() {
 #ifdef HAS_UNITREE_SDK2
     // Initialize sensor manager (optional - may fail if low-level not accessible)
     sensor_manager_ = std::make_shared<SensorManager>();
-    if (!sensor_manager_->init(network_interface_)) {
+    if (!sensor_manager_->init(network_interface_, no_lidar_)) {
         std::cerr << "[TELEOP] Warning: Failed to initialize sensors (low-level not accessible)" << std::endl;
         std::cerr << "[TELEOP] Continuing with high-level control only..." << std::endl;
         // Don't fail - allow keyboard teleop with just camera + high-level control
@@ -252,6 +252,11 @@ int TeleopRunner::runKeyboardMode() {
     // Configure depth streaming if enabled
     if (depth_port_ > 0) {
         keyboard_teleop_->setDepthPort(depth_port_);
+    }
+
+    // Configure webcam streaming if enabled
+    if (webcam_port_ > 0) {
+        keyboard_teleop_->setWebcamPort(webcam_port_);
     }
 
     // Set robot IP for GStreamer fallback if specified

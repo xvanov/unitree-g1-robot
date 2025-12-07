@@ -65,8 +65,8 @@ private:
     int client_port_ = DEFAULT_PORT;
 
     // Configuration
-    int width_ = 640;
-    int height_ = 480;
+    int width_ = 1920;
+    int height_ = 1080;
     int fps_ = 30;
     int jpeg_quality_ = 80;
 

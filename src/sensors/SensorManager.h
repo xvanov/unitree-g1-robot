@@ -19,7 +19,8 @@ public:
 
     // Initialize SDK channel subscribers
     // Returns true on success, false on failure
-    bool init(const std::string& network_interface = "");
+    // Set skip_lidar=true to skip Livox LiDAR initialization (for WiFi networks)
+    bool init(const std::string& network_interface = "", bool skip_lidar = false);
 
     // Register callbacks for asynchronous data
     void setLidarCallback(std::function<void(const LidarScan&)> callback);

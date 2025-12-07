@@ -279,6 +279,20 @@ target_link_libraries(depth_stream_client
 )
 
 # ============================================
+# Webcam Stream Client (for dev machine - receives webcam from robot)
+# ============================================
+add_library(webcam_stream_client
+    src/webcam/WebcamStreamServer.cpp
+)
+target_include_directories(webcam_stream_client PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(webcam_stream_client
+    ${OpenCV_LIBS}
+    pthread
+)
+
+# ============================================
 # Teleop (Story 2-1)
 # ============================================
 
@@ -295,6 +309,7 @@ target_link_libraries(teleop
     loco_hw
     recording
     depth_stream_client
+    webcam_stream_client
     ${OpenCV_LIBS}
 )
 if(unitree_sdk2_FOUND)
@@ -467,10 +482,12 @@ add_executable(webcam_capture tools/webcam_capture.cpp)
 target_link_libraries(webcam_capture webcam_stream ${OpenCV_LIBS})
 
 # Unified stream viewer (shows depth RGB, depth, and webcam in one window)
+# Also supports --replay mode to play back recorded sessions
 add_executable(stream_viewer tools/stream_viewer.cpp)
 target_link_libraries(stream_viewer
     depth_stream_client
     webcam_stream
+    replay
     ${OpenCV_LIBS}
 )
 

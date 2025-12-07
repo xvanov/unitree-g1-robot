@@ -134,7 +134,7 @@ SensorManager::SensorManager()
 
 SensorManager::~SensorManager() = default;
 
-bool SensorManager::init(const std::string& network_interface) {
+bool SensorManager::init(const std::string& network_interface, bool skip_lidar) {
 #ifdef HAS_UNITREE_SDK2
     try {
         // Store network interface for reference
@@ -144,7 +144,10 @@ bool SensorManager::init(const std::string& network_interface) {
         // Both SDKs use network sockets and there may be initialization conflicts
         // Livox must be first as it sets up UDP listeners that could conflict with DDS
         const char* skip_livox = std::getenv("SKIP_LIVOX");
-        if (skip_livox && std::string(skip_livox) == "1") {
+        if (skip_lidar) {
+            std::cout << "[SENSORS] Livox LiDAR skipped (--no-lidar)" << std::endl;
+            use_livox_ = false;
+        } else if (skip_livox && std::string(skip_livox) == "1") {
             std::cout << "[SENSORS] Livox LiDAR skipped (SKIP_LIVOX=1)" << std::endl;
             use_livox_ = false;
         } else {

@@ -35,6 +35,8 @@ public:
     void setAutoStream(bool auto_stream) { auto_stream_ = auto_stream; }
     void setVideoSource(VideoSource source) { video_source_ = source; }
     void setDepthPort(int port) { depth_port_ = port; }
+    void setWebcamPort(int port) { webcam_port_ = port; }
+    void setNoLidar(bool no_lidar) { no_lidar_ = no_lidar; }
 
     // Run teleop (blocking - returns when user quits or signal received)
     // Returns 0 on success, non-zero on error
@@ -79,6 +81,8 @@ private:
     bool auto_stream_ = true;  // Auto-start video stream on robot via SSH (only for GStreamer)
     VideoSource video_source_ = VideoSource::DDS;  // Default to DDS video
     int depth_port_ = 0;  // Depth streaming port (0 = disabled)
+    int webcam_port_ = 0;  // Webcam streaming port (0 = disabled)
+    bool no_lidar_ = false;  // Skip Livox LiDAR initialization
     pid_t stream_pid_ = -1;  // PID of the stream process
 
     // State

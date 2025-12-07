@@ -60,6 +60,15 @@ struct DecodedVideoFrame {
     int64_t timestamp_us = 0;
 };
 
+struct DecodedDepthFrame {
+    uint32_t frame_number = 0;
+    std::vector<uint8_t> color_jpeg;
+    std::vector<uint8_t> depth_png;
+    float fx = 0, fy = 0, cx = 0, cy = 0;
+    float depth_scale = 0.001f;
+    int64_t timestamp_us = 0;
+};
+
 /**
  * SensorReplayer - Low-level decoder for recorded sensor streams
  *
@@ -96,6 +105,8 @@ public:
     uint32_t getImuCount() const { return metadata_.imu_count; }
     uint32_t getPoseCount() const { return metadata_.pose_count; }
     uint32_t getImageCount() const { return metadata_.image_count; }
+    uint32_t getVideoFrameCount() const { return metadata_.video_frame_count; }
+    uint32_t getDepthFrameCount() const { return metadata_.depth_frame_count; }
 
     // Get recording directory (for image loading)
     std::string getRecordingDir() const { return recording_dir_; }
@@ -107,6 +118,7 @@ public:
     static bool decodeImage(const ReplayMessage& msg, DecodedImage& out);
     static bool decodeTeleopCmd(const ReplayMessage& msg, DecodedTeleopCmd& out);
     static bool decodeVideoFrame(const ReplayMessage& msg, DecodedVideoFrame& out);
+    static bool decodeDepthFrame(const ReplayMessage& msg, DecodedDepthFrame& out);
 
 private:
     // Load metadata from JSON file

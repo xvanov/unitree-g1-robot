@@ -12,6 +12,7 @@ class LocoController;
 class SensorRecorder;
 class DDSVideoClient;
 class DepthStreamClient;
+class WebcamStreamClient;
 
 // Video source options
 enum class VideoSource {
@@ -45,6 +46,7 @@ public:
     void setVideoSource(VideoSource source) { video_source_ = source; }
     void setNetworkInterface(const std::string& iface) { network_interface_ = iface; }
     void setDepthPort(int port) { depth_port_ = port; }  // 0 = disabled
+    void setWebcamPort(int port) { webcam_port_ = port; }  // 0 = disabled
 
 private:
     // Process keyboard input, returns true to continue, false to quit
@@ -61,6 +63,7 @@ private:
     bool initGStreamerVideo();
     bool initLocalCamera();
     bool initDepthStream();
+    bool initWebcamStream();
 
     // Draw overlay on camera frame
     void drawOverlay(cv::Mat& frame);
@@ -83,12 +86,15 @@ private:
     cv::VideoCapture camera_;         // For GStreamer/local camera
     std::unique_ptr<DDSVideoClient> dds_video_;  // For DDS video
     std::unique_ptr<DepthStreamClient> depth_client_;  // For depth stream
+    std::unique_ptr<WebcamStreamClient> webcam_client_;  // For webcam stream
     int camera_index_ = 0;
     bool camera_available_ = false;
     bool depth_available_ = false;
+    bool webcam_available_ = false;
     cv::Mat last_frame_;
     cv::Mat last_depth_;              // Last depth frame (16-bit)
     cv::Mat last_depth_color_;        // Colorized depth for display
+    cv::Mat last_webcam_;             // Last webcam frame
     std::vector<uint8_t> last_jpeg_;  // For recording
     std::vector<uint8_t> last_depth_png_;  // For depth recording
     float depth_fx_ = 0, depth_fy_ = 0, depth_cx_ = 0, depth_cy_ = 0;
@@ -98,6 +104,7 @@ private:
     std::string network_interface_;   // Network interface for DDS
     VideoSource video_source_ = VideoSource::DDS;  // Default to DDS
     int depth_port_ = 0;              // Depth stream port (0 = disabled)
+    int webcam_port_ = 0;             // Webcam stream port (0 = disabled)
 
     // Control state
     std::atomic<bool> running_{false};
