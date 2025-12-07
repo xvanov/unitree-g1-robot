@@ -6,6 +6,7 @@
 #include <memory>
 #include <opencv2/opencv.hpp>
 #include "util/Types.h"
+#include "sensors/ISensorSource.h"  // For LidarScan
 
 class SensorManager;
 class LocoController;
@@ -13,6 +14,8 @@ class SensorRecorder;
 class DDSVideoClient;
 class DepthStreamClient;
 class WebcamStreamClient;
+class GridMapper;
+class SlamVisualizer;
 
 // Video source options
 enum class VideoSource {
@@ -47,6 +50,8 @@ public:
     void setNetworkInterface(const std::string& iface) { network_interface_ = iface; }
     void setDepthPort(int port) { depth_port_ = port; }  // 0 = disabled
     void setWebcamPort(int port) { webcam_port_ = port; }  // 0 = disabled
+    void setGridMapper(GridMapper* mapper) { grid_mapper_ = mapper; }
+    void setVisualizeSLAM(bool enable) { visualize_slam_ = enable; }
 
 private:
     // Process keyboard input, returns true to continue, false to quit
@@ -105,6 +110,13 @@ private:
     VideoSource video_source_ = VideoSource::DDS;  // Default to DDS
     int depth_port_ = 0;              // Depth stream port (0 = disabled)
     int webcam_port_ = 0;             // Webcam stream port (0 = disabled)
+
+    // SLAM visualization (Story 3-1)
+    GridMapper* grid_mapper_ = nullptr;  // Borrowed pointer (TeleopRunner owns)
+    std::unique_ptr<SlamVisualizer> slam_viz_;
+    bool visualize_slam_ = false;
+    LidarScan latest_scan_;           // Cached for visualizer
+    bool has_new_scan_ = false;
 
     // Control state
     std::atomic<bool> running_{false};

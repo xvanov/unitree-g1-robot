@@ -1,0 +1,14 @@
+[Unit]
+Description=Zenoh-DDS Bridge for Unitree G1
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/unitree/zenoh-bridge-dds -m peer -l tcp/0.0.0.0:7447 -d 0 --rest-http-port 8000
+Restart=always
+RestartSec=5
+User=unitree
+Environment=RUST_LOG=warn
+
+[Install]
+WantedBy=multi-user.target

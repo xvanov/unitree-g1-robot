@@ -5,6 +5,8 @@
 #include "sensors/SensorManager.h"
 #include "locomotion/LocoController.h"
 #include "recording/SensorRecorder.h"
+#include "slam/SlamVisualizer.h"
+#include "slam/GridMapper.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -57,6 +59,29 @@ void KeyboardTeleop::run() {
 
     // Create window
     cv::namedWindow(WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+
+    // Initialize SLAM visualizer if enabled (Story 3-1)
+    if (visualize_slam_ && grid_mapper_) {
+        slam_viz_ = std::make_unique<SlamVisualizer>(800, 600);
+        std::cout << "[TELEOP] SLAM visualizer initialized" << std::endl;
+
+        // Wire LiDAR callback to:
+        // 1. Update GridMapper with new scan
+        // 2. Cache scan for visualizer rendering
+        // Note: This is the ONLY place we set the LiDAR callback to avoid overwrites
+        if (sensors_) {
+            sensors_->setLidarCallback([this](const LidarScan& scan) {
+                // Update GridMapper with new scan data
+                if (grid_mapper_) {
+                    Pose2D pose = sensors_->getEstimatedPose();
+                    grid_mapper_->update(pose, scan);
+                }
+                // Cache scan for visualizer
+                latest_scan_ = scan;
+                has_new_scan_ = true;
+            });
+        }
+    }
 
     std::cout << "[TELEOP] Keyboard teleop started" << std::endl;
     std::cout << "[TELEOP] Controls:" << std::endl;
@@ -136,10 +161,28 @@ void KeyboardTeleop::run() {
         // Show frame
         cv::imshow(WINDOW_NAME, display_frame);
 
+        // Update SLAM visualizer if enabled (Story 3-1)
+        if (slam_viz_ && grid_mapper_) {
+            Pose2D pose = sensors_ ? sensors_->getEstimatedPose() : Pose2D{0, 0, 0};
+            slam_viz_->update(*grid_mapper_, pose, has_new_scan_ ? &latest_scan_ : nullptr);
+            has_new_scan_ = false;
+            slam_viz_->render();
+
+            // Check if SLAM visualizer was closed
+            if (slam_viz_->shouldClose()) {
+                break;  // User quit via SLAM window
+            }
+        }
+
         // Process keyboard input (wait 1ms for key)
         int key = cv::waitKey(1);
         if (key != -1 && !processKey(key)) {
             break;  // User quit
+        }
+
+        // Also let SLAM visualizer process keys
+        if (slam_viz_) {
+            slam_viz_->processKey(key);
         }
 
         // Send velocity command at ~50Hz

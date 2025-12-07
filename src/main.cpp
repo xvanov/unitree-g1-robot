@@ -52,6 +52,7 @@ void printUsage() {
               << "  --depth-port <port>  Enable depth streaming on port (e.g., 5001). Robot must run depth_stream_server\n"
               << "  --webcam-port <port> Enable webcam streaming on port (e.g., 5002). Robot must run webcam_stream_server\n"
               << "  --no-lidar           Disable Livox LiDAR initialization (for WiFi networks)\n"
+              << "  --visualize-slam     Show real-time SLAM map during teleop\n"
               << "  --no-auto-stream     Don't auto-start video stream on robot (GStreamer only)\n"
               << "  --dry-run            Skip robot connection (test camera/UI only)\n"
               << "  --record <session>   Enable recording during teleop (requires --teleop)\n"
@@ -716,6 +717,7 @@ int main(int argc, char* argv[]) {
     int depthPort = 0;  // 0 = disabled, e.g., 5001 to enable
     int webcamPort = 0;  // 0 = disabled, e.g., 5002 to enable
     bool noLidar = false;  // Skip Livox LiDAR initialization
+    bool visualizeSLAM = false;  // Show SLAM visualizer during teleop
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -813,6 +815,11 @@ int main(int argc, char* argv[]) {
 
         if (arg == "--no-lidar") {
             noLidar = true;
+            continue;
+        }
+
+        if (arg == "--visualize-slam") {
+            visualizeSLAM = true;
             continue;
         }
 
@@ -998,6 +1005,10 @@ int main(int argc, char* argv[]) {
 
         if (noLidar) {
             runner.setNoLidar(true);
+        }
+
+        if (visualizeSLAM) {
+            runner.setVisualizeSLAM(true);
         }
 
         if (!robotIP.empty()) {

@@ -753,5 +753,491 @@ Epic 2: E2E Testing Infrastructure
 
 ---
 
+---
+
+## Epic 3: Autonomous Navigation with Live Mapping
+
+**Goal:** Robot builds a map while being teleoperated (with real-time visualization), saves the map, then autonomously navigates using that map with proper localization.
+
+**User Value:** Operator can drive robot to create a map, see it build in real-time, save it, and then have the robot autonomously navigate waypoints on that map.
+
+**Total Stories:** 6
+
+**PRD Coverage:** FR12-22 (Autonomous Navigation + Localization), FR26 (Interior Representation)
+
+**Technical Context:**
+- GridMapper exists and works (log-odds occupancy grid)
+- Localizer is currently a stub (odometry pass-through only)
+- Planner (A*) and PathFollower exist and work
+- PlanManager auto-generates waypoints from maps
+- Teleop and recording already implemented (Epic 2)
+
+---
+
+## Story 3-1: Real-Time SLAM Visualizer
+
+As an **operator**,
+I want **to see the occupancy grid map build in real-time while I drive the robot**,
+So that **I can verify coverage and map quality during teleop mapping runs**.
+
+**Scope:**
+- Implement `SlamVisualizer` class:
+  - OpenCV window showing occupancy grid (grayscale: black=occupied, white=free, gray=unknown)
+  - Robot pose marker (triangle or arrow showing position + heading)
+  - LiDAR rays overlay (optional, toggleable)
+  - Real-time update at 10Hz
+  - Window controls: zoom (scroll), pan (drag), reset view (r key)
+- Integrate with existing `KeyboardTeleop`:
+  - Second window or split view showing map alongside camera
+  - Map updates as robot moves and scans environment
+- CLI flag: `--visualize-slam` enables the visualizer
+- Display stats overlay: cells mapped, robot pose, scan count
+
+**Acceptance Criteria:**
+- OpenCV window shows occupancy grid updating in real-time
+- Robot position and heading visible on map
+- LiDAR rays can be toggled on/off
+- Zoom and pan controls work
+- Stats overlay shows mapping progress
+- Visualizer runs at 10Hz without impacting teleop performance
+- Works with both keyboard and gamepad teleop
+
+**Verification:**
+```bash
+# Teleop with SLAM visualization
+./build/g1_inspector --teleop keyboard --visualize-slam
+
+# Window shows:
+# - Grayscale occupancy grid growing as robot explores
+# - Blue triangle = robot position/heading
+# - Green lines = current LiDAR rays (if enabled)
+# - Stats: "Cells: 4523 | Pose: (2.3, 1.5, 0.4) | Scans: 342"
+
+# Controls:
+# - Scroll wheel: zoom in/out
+# - Click+drag: pan view
+# - 'r': reset view to robot
+# - 'l': toggle LiDAR rays
+# - 'q': quit
+```
+
+**Prerequisites:** Story 2-1 (Teleop), Story 3 (SLAM Core / GridMapper)
+
+**Technical Notes:**
+- Use existing `GridMapper::getMap()` for occupancy data
+- Convert log-odds to grayscale: `pixel = 255 * (1 - sigmoid(log_odds))`
+- Robot pose from odometry (IMU integration)
+- Render at lower resolution if needed for performance (e.g., 2x downscale)
+
+---
+
+## Story 3-2: Map Save and Load
+
+As an **operator**,
+I want **to save the built map after a teleop run and load it later for navigation**,
+So that **I don't need to rebuild the map every time I want the robot to navigate**.
+
+**Scope:**
+- Implement `MapManager` class:
+  - `saveMap(path)` - Save occupancy grid as PNG + metadata JSON
+  - `loadMap(path)` - Load saved map for navigation
+  - Metadata: resolution, origin, dimensions, creation timestamp, robot start pose
+- Map format:
+  - PNG: Grayscale occupancy (0=occupied, 255=free, 128=unknown)
+  - JSON: `{resolution: 0.05, origin: {x, y}, width: 200, height: 150, created: "2025-12-07T10:30:00Z"}`
+- CLI commands:
+  - `--save-map <path>` - Save current map when exiting teleop
+  - `--load-map <path>` - Load map for autonomous navigation
+- Auto-save option: save map on clean exit from teleop mode
+- Integrate with `PlanManager` - loaded maps can be used for waypoint generation
+
+**Acceptance Criteria:**
+- Map saves as PNG + JSON metadata
+- Saved map loads correctly
+- Loaded map dimensions and resolution preserved
+- Waypoints can be generated from loaded map
+- Auto-save works on clean teleop exit
+
+**Verification:**
+```bash
+# Teleop and save map
+./build/g1_inspector --teleop keyboard --visualize-slam --save-map data/maps/office_001
+
+# Check saved files
+ls data/maps/office_001/
+# map.png  metadata.json
+
+cat data/maps/office_001/metadata.json
+# {"resolution": 0.05, "origin": {"x": 0, "y": 0}, "width": 400, "height": 300, ...}
+
+# Load map and generate waypoints
+./build/g1_inspector --load-map data/maps/office_001
+> waypoints
+# Waypoint 1: (2.0, 1.5)
+# Waypoint 2: (4.0, 1.5)
+# ...
+# Total: 23 waypoints generated from map
+```
+
+**Prerequisites:** Story 3-1 (SLAM Visualizer)
+
+**Technical Notes:**
+- PNG uses OpenCV `imwrite` with grayscale
+- Resolution typically 0.05m/cell (5cm)
+- Origin is bottom-left corner of map in world coordinates
+- Metadata JSON uses nlohmann/json
+
+---
+
+## Story 3-3: Scan-Matching Localizer
+
+As the **robot**,
+I want **to know my position on a saved map using LiDAR scan matching**,
+So that **I can navigate autonomously without accumulating odometry drift**.
+
+**Scope:**
+- Implement `ScanMatchingLocalizer` class:
+  - Replace stub `Localizer` with real implementation
+  - ICP (Iterative Closest Point) or correlation-based scan matching
+  - Input: current LiDAR scan + occupancy grid map
+  - Output: corrected pose estimate
+  - Fuse with odometry for smooth updates
+- Localization confidence score:
+  - Based on scan match quality (residual error)
+  - Threshold for "lost" detection
+- Initial pose estimation:
+  - Manual calibration (operator sets start position)
+  - Future: automatic pose recovery
+- Update rate: 10Hz (matches LiDAR rate)
+
+**Acceptance Criteria:**
+- Localizer estimates pose from scan matching against map
+- Pose estimate within 0.1m of ground truth in known environment
+- Confidence score reflects match quality
+- "Lost" state detected when match quality drops below threshold
+- Works with maps saved from Story 3-2
+- 10Hz update rate maintained
+
+**Verification:**
+```bash
+# Test localization with replay data
+./build/g1_inspector --replay my_session_001 --load-map data/maps/office_001 --test-localizer
+
+# Output:
+# [LOCALIZER] Initialized with map: office_001 (400x300, 0.05m/cell)
+# [LOCALIZER] Initial pose set: (0.0, 0.0, 0.0)
+# [LOCALIZER] Frame 1: pose=(0.12, 0.05, 0.02), confidence=0.95
+# [LOCALIZER] Frame 2: pose=(0.25, 0.08, 0.03), confidence=0.94
+# ...
+# [LOCALIZER] Test complete: mean_error=0.08m, max_error=0.15m
+
+# Test with ground truth comparison
+./build/test_localizer --replay my_session_001 --map data/maps/office_001
+# Localization Test Results:
+# - Mean position error: 0.08m
+# - Max position error: 0.15m
+# - Mean heading error: 2.3°
+# - Frames with confidence < 0.5: 3/500 (0.6%)
+# PASS
+```
+
+**Prerequisites:** Story 3-2 (Map Save/Load)
+
+**Technical Notes:**
+- Start with simple correlation-based matching (fast, good enough for indoor)
+- Search window: ±0.5m translation, ±10° rotation from odometry prediction
+- Score = sum of occupied cells hit by scan rays
+- Use coarse-to-fine for speed (4x downscale first, then refine)
+- Fuse with odometry using simple weighted average (80% scan match, 20% odometry)
+
+---
+
+## Story 3-4: Autonomous Navigation Loop
+
+As the **robot**,
+I want **to autonomously navigate through a sequence of waypoints**,
+So that **I can perform inspections without manual control**.
+
+**Scope:**
+- Implement `AutonomousController` class:
+  - Main loop: sense → localize → plan → move
+  - Waypoint sequencing from `PlanManager::getInspectionWaypoints()`
+  - Goal reaching detection (within tolerance)
+  - Progress tracking (current waypoint, completion %)
+- Integrate existing components:
+  - `ScanMatchingLocalizer` for pose
+  - `Planner` (A*) for path to next waypoint
+  - `PathFollower` for velocity commands
+  - `LocoController` to send commands to robot
+- State machine integration:
+  - INSPECTING state runs autonomous loop
+  - Transition to BLOCKED if path fails
+  - Transition to COMPLETE when all waypoints visited
+- CLI command: `start` begins autonomous navigation (existing)
+
+**Acceptance Criteria:**
+- Robot autonomously navigates to each waypoint in sequence
+- Goal tolerance: within 0.3m of waypoint center
+- Path replanning on each loop iteration (handles minor drift)
+- Progress displayed: "Waypoint 3/15 (20%)"
+- Smooth velocity commands (no jerky motion)
+- Stops cleanly at final waypoint
+
+**Verification:**
+```bash
+# Load map and start autonomous navigation
+./build/g1_inspector --robot 192.168.123.164 --load-map data/maps/office_001
+
+> status
+State: IDLE
+Map: office_001 loaded
+Waypoints: 15
+
+> start
+[AUTO] Starting autonomous navigation
+[AUTO] Waypoint 1/15: (2.0, 1.5)
+[AUTO] Planning path... 12 cells
+[AUTO] Following path...
+[AUTO] Reached waypoint 1
+[AUTO] Waypoint 2/15: (4.0, 1.5)
+...
+[AUTO] Waypoint 15/15: (8.0, 6.0)
+[AUTO] Reached waypoint 15
+[AUTO] Navigation complete
+State: COMPLETE
+
+> status
+State: COMPLETE
+Waypoints visited: 15/15 (100%)
+```
+
+**Prerequisites:** Story 3-3 (Scan-Matching Localizer)
+
+**Technical Notes:**
+- Loop rate: 10Hz
+- Replan every iteration (simple, handles dynamic changes)
+- Goal tolerance: 0.3m position, 15° heading (configurable)
+- Velocity limits from SafetyMonitor
+- Use existing PathFollower pure pursuit implementation
+
+---
+
+## Story 3-5: Blocked Path Handling
+
+As an **operator**,
+I want **the robot to detect when it's stuck and notify me**,
+So that **I can intervene when autonomous navigation fails**.
+
+**Scope:**
+- Implement blocked detection in `AutonomousController`:
+  - Path planning failure (no valid path to goal)
+  - Stall detection (commanding velocity but not moving)
+  - Localization failure (confidence too low)
+- Recovery attempts:
+  - Replan up to 3 times with increasing search radius
+  - Back up slightly and retry (if stalled)
+  - Stop and notify if recovery fails
+- Operator notification:
+  - Console message with reason and location
+  - State transition to BLOCKED
+  - Option to skip waypoint or abort
+- CLI commands in BLOCKED state:
+  - `skip` - Skip current waypoint, continue to next
+  - `retry` - Attempt recovery again
+  - `abort` - Stop navigation, return to IDLE
+
+**Acceptance Criteria:**
+- Robot detects blocked path (no valid route)
+- Robot detects stall (movement timeout)
+- Robot detects localization loss
+- Recovery attempted before giving up
+- Clear notification to operator with reason
+- Skip/retry/abort commands work in BLOCKED state
+
+**Verification:**
+```bash
+# Simulate blocked scenario (place obstacle in path)
+./build/g1_inspector --robot 192.168.123.164 --load-map data/maps/office_001
+
+> start
+[AUTO] Waypoint 3/15: (6.0, 3.0)
+[AUTO] Planning path... FAILED (no valid path)
+[AUTO] Retry 1/3...
+[AUTO] Planning path... FAILED
+[AUTO] Retry 2/3...
+[AUTO] Planning path... FAILED
+[AUTO] Retry 3/3...
+[AUTO] Planning path... FAILED
+[BLOCKED] Navigation blocked at (4.2, 2.8)
+[BLOCKED] Reason: No valid path to waypoint 3
+[BLOCKED] Options: 'skip' | 'retry' | 'abort'
+State: BLOCKED
+
+> skip
+[AUTO] Skipping waypoint 3
+[AUTO] Waypoint 4/15: (6.0, 4.5)
+[AUTO] Planning path... 18 cells
+[AUTO] Following path...
+```
+
+**Prerequisites:** Story 3-4 (Autonomous Navigation Loop)
+
+**Technical Notes:**
+- Stall detection: if velocity commanded > 0.1 m/s but position change < 0.02m over 2 seconds
+- Localization failure: confidence < 0.3 for 5 consecutive frames
+- Path failure: A* returns empty path
+- Back up: -0.1 m/s for 1 second before retry
+
+---
+
+## Story 3-6: End-to-End Autonomous Demo
+
+As a **developer**,
+I want **to validate the complete autonomous navigation pipeline**,
+So that **I can confirm the system works before real-world deployment**.
+
+**Scope:**
+- Create demo scenario:
+  - Pre-recorded teleop session with known ground truth
+  - Saved map from that session
+  - Defined waypoint sequence
+  - Expected trajectory
+- Implement `AutonomousDemo` test:
+  - Can run in simulation (NavSim) or replay mode
+  - Validates: localization accuracy, waypoint reaching, path quality
+  - Generates test report
+- Success criteria validation:
+  - All waypoints reached (or appropriately skipped if blocked)
+  - Localization error < 0.2m mean
+  - No collisions
+  - Completion within reasonable iterations
+- Documentation: step-by-step demo guide
+
+**Acceptance Criteria:**
+- Demo runs successfully in simulation
+- Demo runs successfully with replay data
+- All waypoints reached or handled appropriately
+- Localization accuracy meets threshold
+- No collisions detected
+- Test report generated with metrics
+- Demo guide documents the full process
+
+**Verification:**
+```bash
+# Run demo in simulation
+./build/test_autonomous_demo --mode sim --map test_data/office.png
+
+# Output:
+# Autonomous Demo Test
+# Mode: Simulation
+# Map: office.png (400x300)
+# Waypoints: 10
+#
+# Running...
+# [1/10] Reached (2.0, 1.5) ✓
+# [2/10] Reached (4.0, 1.5) ✓
+# ...
+# [10/10] Reached (8.0, 6.0) ✓
+#
+# Results:
+# - Waypoints reached: 10/10 (100%)
+# - Mean localization error: 0.12m
+# - Max localization error: 0.19m
+# - Collisions: 0
+# - Total path length: 24.5m
+# PASS
+
+# Run with replay data
+./build/test_autonomous_demo --mode replay --session my_session_001 --map data/maps/office_001
+
+# Generate full report
+./build/test_autonomous_demo --mode sim --report outputs/demo_report.json
+```
+
+**Prerequisites:** Story 3-5 (Blocked Path Handling)
+
+**Technical Notes:**
+- Simulation mode uses NavSim with simulated LiDAR
+- Replay mode uses recorded sensor data
+- Ground truth comparison for localization validation
+- Test report JSON includes all metrics for CI integration
+
+---
+
+## Epic 3 Story Dependency Graph
+
+```
+Epic 2 (Teleop/Recording)
+         │
+         ▼
+    Story 3-1 (SLAM Visualizer)
+         │
+         ▼
+    Story 3-2 (Map Save/Load)
+         │
+         ▼
+    Story 3-3 (Scan-Matching Localizer)
+         │
+         ▼
+    Story 3-4 (Autonomous Navigation Loop)
+         │
+         ▼
+    Story 3-5 (Blocked Path Handling)
+         │
+         ▼
+    Story 3-6 (E2E Demo)
+```
+
+**Parallelization Opportunity:**
+- Story 3-1 (Visualizer) can be done first, enabling data collection
+- While operator collects data with 3-1, stories 3-3 through 3-6 can be developed
+- Story 3-2 (Save/Load) is quick and unblocks 3-3
+
+---
+
+## Epic 3 Deliverables Summary
+
+| Story | Deliverable | Verification |
+|-------|-------------|--------------|
+| **3-1: SLAM Visualizer** | Real-time map display during teleop | `--visualize-slam` shows growing occupancy grid with robot pose |
+| **3-2: Map Save/Load** | Persistent maps for navigation | `--save-map` creates PNG+JSON, `--load-map` restores for navigation |
+| **3-3: Localizer** | Scan-matching pose estimation | Localization test shows <0.2m mean error vs ground truth |
+| **3-4: Auto Nav Loop** | Autonomous waypoint navigation | Robot visits all waypoints autonomously, progress shown |
+| **3-5: Blocked Handling** | Stuck detection and recovery | Robot detects blocks, notifies operator, skip/retry/abort work |
+| **3-6: E2E Demo** | Full pipeline validation | Demo test passes in sim and replay modes |
+
+---
+
+## Updated Summary
+
+| Metric | Value |
+|--------|-------|
+| **Total Epics** | 3 |
+| **Total Stories** | 18 |
+| **Epic 1 Stories** | 9 (Complete) |
+| **Epic 2 Stories** | 3 (2 Complete, 1 Ready) |
+| **Epic 3 Stories** | 6 (New) |
+
+---
+
+## FR Coverage Matrix (Epic 3)
+
+| FR | Description | Story |
+|----|-------------|-------|
+| FR12 | Robot navigates autonomously through indoor environments | 3-4 |
+| FR13 | Robot traverses stairs during inspection | 3-4 (uses existing locomotion) |
+| FR14 | Robot navigates around static obstacles | 3-4, 3-5 |
+| FR15 | Robot detects when planned path is blocked | 3-5 |
+| FR16 | Robot attempts alternate routes when blocked | 3-5 |
+| FR17 | Robot stops and notifies operator when no viable path | 3-5 |
+| FR18 | System tracks route completion percentage | 3-4 |
+| FR19 | Robot self-localizes using plans and sensors | 3-3 |
+| FR20 | Robot maintains position awareness throughout route | 3-3, 3-4 |
+| FR21 | Robot detects when localization confidence is low | 3-3, 3-5 |
+| FR22 | Robot stops and notifies when localization fails | 3-5 |
+| FR26 | System builds interior representation from sensor data | 3-1, 3-2 |
+
+---
+
 _Generated for Lightweight C++ Architecture v2.0_
-_Updated: 2025-12-06 (Epic 2 stories 2-1 and 2-2 completed, 2-3 ready for development)_
+_Updated: 2025-12-07 (Epic 3 added for Autonomous Navigation with Live Mapping)_

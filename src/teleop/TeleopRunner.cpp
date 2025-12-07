@@ -5,6 +5,7 @@
 #include "sensors/SensorManager.h"
 #include "locomotion/LocoController.h"
 
+#include <opencv2/opencv.hpp>  // For cv::waitKey in gamepad SLAM viz
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -145,9 +146,39 @@ int TeleopRunner::runGamepadMode() {
 
     gamepad_controller_ = std::make_unique<TeleopController>();
 
+    // Initialize SLAM visualization if enabled (Story 3-1, AC7)
+    if (visualize_slam_) {
+        // Create GridMapper: 200x200 grid at 0.05m resolution = 10m x 10m coverage
+        grid_mapper_ = std::make_unique<GridMapper>(0.05f, 200, 200);
+        slam_viz_ = std::make_unique<SlamVisualizer>(800, 600);
+        std::cout << "[TELEOP] SLAM visualization enabled (10m x 10m grid)" << std::endl;
+    }
+
+    // Wire consolidated LiDAR callback for both recording and SLAM visualization
+    // This avoids callback overwrite issues (sensor manager only supports one callback)
+    if (sensor_manager_) {
+        sensor_manager_->setLidarCallback([this](const LidarScan& scan) {
+            // Record LiDAR scan if recording is active
+            if (recorder_ && recorder_->isRecording()) {
+                recorder_->recordLidarScan(scan);
+            }
+            // Update GridMapper and cache scan for SLAM visualization
+            if (grid_mapper_) {
+                Pose2D pose = sensor_manager_->getEstimatedPose();
+                grid_mapper_->update(pose, scan);
+            }
+            if (visualize_slam_) {
+                latest_scan_ = scan;
+                has_new_scan_ = true;
+            }
+        });
+    }
+
     // Main teleop loop
     auto last_cmd_time = std::chrono::steady_clock::now();
+    auto last_viz_time = std::chrono::steady_clock::now();
     const auto cmd_interval = std::chrono::milliseconds(20);  // 50 Hz
+    const auto viz_interval = std::chrono::milliseconds(100); // 10 Hz for SLAM viz
 
     Pose2D current_pose{0, 0, 0};
     int pose_record_counter = 0;
@@ -211,6 +242,27 @@ int TeleopRunner::runGamepadMode() {
             loco_controller_->setVelocity(0, 0, 0);
         }
 
+        // Update SLAM visualization at 10Hz (Story 3-1, AC6)
+        auto now = std::chrono::steady_clock::now();
+        if (slam_viz_ && grid_mapper_ && now - last_viz_time >= viz_interval) {
+            Pose2D pose = sensor_manager_ ? sensor_manager_->getEstimatedPose() : Pose2D{0, 0, 0};
+            slam_viz_->update(*grid_mapper_, pose, has_new_scan_ ? &latest_scan_ : nullptr);
+            has_new_scan_ = false;
+            slam_viz_->render();
+            last_viz_time = now;
+
+            // Process keys for SLAM visualizer (non-blocking)
+            int key = cv::waitKey(1);
+            if (key != -1) {
+                slam_viz_->processKey(key);
+            }
+
+            // Check if visualizer was closed
+            if (slam_viz_->shouldClose()) {
+                break;
+            }
+        }
+
         // Small sleep to avoid busy-waiting
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
@@ -239,6 +291,15 @@ int TeleopRunner::runKeyboardMode() {
         std::cout << "[TELEOP] Using DDS video (no SSH required)" << std::endl;
     }
 
+    // Create GridMapper for SLAM visualization if enabled
+    if (visualize_slam_) {
+        // 200x200 grid at 0.05m resolution = 10m x 10m coverage
+        grid_mapper_ = std::make_unique<GridMapper>(0.05f, 200, 200);
+        std::cout << "[TELEOP] SLAM visualization enabled (10m x 10m grid)" << std::endl;
+        // Note: LiDAR callback for GridMapper is set in KeyboardTeleop::run()
+        // to avoid callback overwrite issues (sensor manager only supports one callback)
+    }
+
     keyboard_teleop_ = std::make_unique<KeyboardTeleop>(
         sensor_manager_.get(),
         loco_controller_.get(),
@@ -264,6 +325,12 @@ int TeleopRunner::runKeyboardMode() {
         keyboard_teleop_->setRobotIP(robot_ip_);
     }
 
+    // Pass GridMapper to KeyboardTeleop for SLAM visualization
+    if (visualize_slam_ && grid_mapper_) {
+        keyboard_teleop_->setGridMapper(grid_mapper_.get());
+        keyboard_teleop_->setVisualizeSLAM(true);
+    }
+
     // Run blocking teleop loop
     keyboard_teleop_->run();
 
@@ -279,12 +346,9 @@ int TeleopRunner::runKeyboardMode() {
 void TeleopRunner::wireRecorderCallbacks() {
     if (!recorder_ || !sensor_manager_) return;
 
-    // Wire LiDAR callback
-    sensor_manager_->setLidarCallback([this](const LidarScan& scan) {
-        if (recorder_ && recorder_->isRecording()) {
-            recorder_->recordLidarScan(scan);
-        }
-    });
+    // Note: LiDAR callback is wired in runGamepadMode() consolidated callback
+    // to support both recording and SLAM visualization without overwrite issues.
+    // Only wire IMU callback here.
 
     // Wire IMU callback
     sensor_manager_->setImuCallback([this](const ImuData& imu) {
@@ -293,7 +357,7 @@ void TeleopRunner::wireRecorderCallbacks() {
         }
     });
 
-    std::cout << "[TELEOP] Sensor callbacks wired to recorder" << std::endl;
+    std::cout << "[TELEOP] IMU callback wired to recorder" << std::endl;
 }
 
 std::string TeleopRunner::getLocalIP() {

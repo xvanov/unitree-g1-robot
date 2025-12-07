@@ -107,6 +107,7 @@ target_link_libraries(navigation ${OpenCV_LIBS})
 add_library(slam
     src/slam/GridMapper.cpp
     src/slam/Localizer.cpp
+    src/slam/SlamVisualizer.cpp
 )
 target_link_libraries(slam ${OpenCV_LIBS})
 
@@ -310,6 +311,7 @@ target_link_libraries(teleop
     recording
     depth_stream_client
     webcam_stream_client
+    slam
     ${OpenCV_LIBS}
 )
 if(unitree_sdk2_FOUND)
@@ -421,6 +423,19 @@ target_link_libraries(test_dds_video ${OpenCV_LIBS})
 if(unitree_sdk2_FOUND)
     target_link_libraries(test_dds_video unitree_sdk2)
     target_compile_definitions(test_dds_video PRIVATE HAS_UNITREE_SDK2)
+endif()
+
+# DDS Hello World test tools (for Zenoh bridge testing)
+add_executable(dds_hello_pub tools/dds_hello_pub.cpp)
+if(unitree_sdk2_FOUND)
+    target_link_libraries(dds_hello_pub unitree_sdk2)
+    target_compile_definitions(dds_hello_pub PRIVATE HAS_UNITREE_SDK2)
+endif()
+
+add_executable(dds_hello_sub tools/dds_hello_sub.cpp)
+if(unitree_sdk2_FOUND)
+    target_link_libraries(dds_hello_sub unitree_sdk2)
+    target_compile_definitions(dds_hello_sub PRIVATE HAS_UNITREE_SDK2)
 endif()
 
 # RealSense test tool
@@ -724,6 +739,15 @@ if(GTest_FOUND)
         COMMAND ${CMAKE_SOURCE_DIR}/test/test_e2e_story_2_2.sh
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
+
+    # SLAM Visualizer unit tests (Story 3-1)
+    add_executable(test_slam_visualizer test/test_slam_visualizer.cpp)
+    target_link_libraries(test_slam_visualizer
+        slam
+        GTest::gtest_main
+    )
+    add_test(NAME test_slam_visualizer COMMAND test_slam_visualizer
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 else()
     message(WARNING "GTest not found - unit tests will not be built")
 endif()

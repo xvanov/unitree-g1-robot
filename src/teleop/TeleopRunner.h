@@ -4,6 +4,8 @@
 #include <memory>
 #include <atomic>
 #include "teleop/KeyboardTeleop.h"  // For VideoSource enum
+#include "slam/GridMapper.h"
+#include "slam/SlamVisualizer.h"
 
 class SensorManager;
 class LocoController;
@@ -37,6 +39,7 @@ public:
     void setDepthPort(int port) { depth_port_ = port; }
     void setWebcamPort(int port) { webcam_port_ = port; }
     void setNoLidar(bool no_lidar) { no_lidar_ = no_lidar; }
+    void setVisualizeSLAM(bool enable) { visualize_slam_ = enable; }
 
     // Run teleop (blocking - returns when user quits or signal received)
     // Returns 0 on success, non-zero on error
@@ -83,6 +86,7 @@ private:
     int depth_port_ = 0;  // Depth streaming port (0 = disabled)
     int webcam_port_ = 0;  // Webcam streaming port (0 = disabled)
     bool no_lidar_ = false;  // Skip Livox LiDAR initialization
+    bool visualize_slam_ = false;  // Show SLAM visualizer during teleop
     pid_t stream_pid_ = -1;  // PID of the stream process
 
     // State
@@ -94,4 +98,8 @@ private:
     std::unique_ptr<SensorRecorder> recorder_;
     std::unique_ptr<TeleopController> gamepad_controller_;
     std::unique_ptr<KeyboardTeleop> keyboard_teleop_;
+    std::unique_ptr<GridMapper> grid_mapper_;  // SLAM grid mapper (owned by TeleopRunner)
+    std::unique_ptr<SlamVisualizer> slam_viz_;  // SLAM visualizer for gamepad mode
+    LidarScan latest_scan_;  // Cached scan for gamepad SLAM visualization
+    bool has_new_scan_ = false;
 };
