@@ -572,13 +572,186 @@ After Story 4, we have hardware connectivity proven. Remaining stories build on 
 
 ---
 
+---
+
+## Epic 2: E2E Testing Infrastructure
+
+**Goal:** Capture real sensor data via teleoperation, replay it offline, and validate the full inspection pipeline without requiring hardware for every test run.
+
+**Total Stories:** 3
+
+**Rationale:** Current tests rely heavily on mocking and synthetic data. Real recorded data provides:
+- Actual sensor noise and drift characteristics
+- Real defect images for VLM validation
+- Ground truth positions for localization accuracy testing
+- CI-compatible testing without robot hardware
+
+---
+
+## Story 2-1: Teleop and Sensor Recording
+
+As a **developer**,
+I want **to teleoperate the robot while recording all sensor data**,
+So that **I can capture real-world data for E2E testing without synthetic noise**.
+
+**Scope:**
+- Implement `TeleopController` class (parse gamepad from `wireless_remote[40]`)
+- Implement `KeyboardTeleop` class (OpenCV window with camera feed, WASD control)
+- Implement `SensorRecorder` class (stream LiDAR, IMU, pose, images to compressed binary)
+- Add msgpack-c and zstd dependencies for high-performance binary serialization
+- CLI commands: `--teleop gamepad`, `--teleop keyboard`, `--record <session_id>`
+- File format: MessagePack + zstd compression (~8 MB/min for full sensor suite)
+- Visual feedback during recording (frame counter, disk usage, duration)
+
+**Acceptance Criteria:**
+- Gamepad teleop works (left stick = movement, right stick = rotation, buttons = stand/sit)
+- Keyboard teleop with camera view (WASD controls, live camera feed)
+- Sensor data recorded to compressed binary format
+- Recording maintains real-time performance (<5% CPU overhead)
+- Session metadata saved (start time, duration, robot ID, plan loaded)
+- Graceful stop on Ctrl+C or 'q' key (flushes all buffers)
+
+**Verification:**
+```bash
+# Gamepad teleop with recording
+./build/g1_inspector --teleop gamepad --record my_session_001 --plan floor.png
+
+# Check recording output
+ls data/recordings/my_session_001/
+# sensors.bin.zst  metadata.json  images/
+
+cat data/recordings/my_session_001/metadata.json
+# {"session_id": "my_session_001", "duration_s": 300, "lidar_count": 3000, ...}
+```
+
+**Prerequisites:** Story 4 (Hardware Integration)
+
+---
+
+## Story 2-2: Sensor Replay System
+
+As a **developer**,
+I want **to replay recorded sensor data through the system**,
+So that **I can test the full pipeline with real-world data offline**.
+
+**Scope:**
+- Implement `SensorReplayer` class (decompress and decode recorded sensor stream)
+- Implement `ReplaySensorSource` class (implements `ISensorSource` for replay mode)
+- Implement `ReplayController` class (playback controls: speed, pause, seek, loop)
+- Variable playback speed: 0.25x, 0.5x, 1.0x, 2.0x, 4.0x
+- Seek to any point in recording (by time or percentage)
+- Ground truth pose accessible separately from estimated pose
+- CLI command: `--replay <session_id>` runs pipeline with recorded data
+
+**Acceptance Criteria:**
+- Can replay recorded sensor data from Story 10 format
+- Real-time playback (sensors delivered at original timestamps)
+- `ReplaySensorSource` implements `ISensorSource` interface (drop-in replacement)
+- Ground truth pose accessible for validation
+- Variable speed and seek controls work
+- Loop mode for continuous testing
+
+**Verification:**
+```bash
+# Basic replay
+./build/g1_inspector --replay my_session_001
+
+# Replay at 2x speed with visualization
+./build/g1_inspector --replay my_session_001 --replay-speed 2.0 --replay-visualize
+
+# Replay in loop mode
+./build/g1_inspector --replay my_session_001 --replay-loop
+```
+
+**Prerequisites:** Story 2-1 (Teleop + Sensor Recording)
+
+---
+
+## Story 2-3: E2E Replay Test
+
+As a **developer**,
+I want **an end-to-end test using real recorded data**,
+So that **I can validate the full inspection pipeline before deploying to the robot**.
+
+**Scope:**
+- Implement real localization algorithm (scan matching against built map)
+- Implement `E2EReplayTest` class (orchestrates full pipeline test)
+- Implement `GroundTruthValidator` class (compares estimated vs actual results)
+- Implement `TestScenario` format (JSON files defining expected defects, positions)
+- Test report generation (accuracy metrics, detected vs expected defects, coverage)
+- CI-compatible (headless mode, no GUI required)
+- Deterministic results with seeded random
+
+**Acceptance Criteria:**
+- E2E test runs full pipeline: replay → localization → capture → detection → report
+- Localization accuracy validated (estimated position within 0.3m of ground truth)
+- Defect detection validated (>80% recall on known defects)
+- Deterministic results with seeded random (same seed = same results)
+- Test scenarios defined in configuration files (not hardcoded)
+- Test report generated with clear pass/fail and metrics
+- Works in CI without GUI or real hardware
+
+**Verification:**
+```bash
+# Run E2E test with test scenario
+./build/test_e2e_replay --scenario data/test_scenarios/room_001.json
+
+# Output:
+# E2E Test Report: room_001
+# Localization: PASS (mean error 0.15m, max 0.28m)
+# Detection: PASS (85% recall, 90% precision)
+# Coverage: PASS (87% actual vs 85% expected)
+# Overall: PASS
+
+# Run in CI mode
+./build/test_e2e_replay --mock-vlm --headless
+```
+
+**Prerequisites:** Story 2-2 (Replay System)
+
+---
+
+## Updated Story Dependency Graph
+
+```
+Epic 1: Construction Site Inspector MVP (Complete)
+Story 1-1 (Setup) → 1-2 (Nav) → 1-3 (SLAM) → 1-4 (Hardware) → 1-5 (Safety) → 1-6 (CLI) → 1-7 (Capture) → 1-8 (VLM) → 1-9 (Report)
+
+Epic 2: E2E Testing Infrastructure
+                                    Story 1-4 (Hardware)
+                                         │
+                                         ▼
+                                    Story 2-1 (Teleop + Recording)
+                                         │
+                                         ▼
+                                    Story 2-2 (Replay System)
+                                         │
+                                         ▼
+                                    Story 2-3 (E2E Replay Test)
+```
+
+---
+
+## Updated Summary
+
+| Metric | Value |
+|--------|-------|
+| **Total Epics** | 2 |
+| **Total Stories** | 12 |
+| **Epic 1 Stories** | 9 (Complete) |
+| **Epic 2 Stories** | 3 (New) |
+| **Simulation-testable** | 1-3, 8, 11-12 |
+| **Requires hardware** | 4-7, 9, 10 |
+
+---
+
 ## Deferred to Post-MVP
 
-- **Integration Testing Suite** - Formal end-to-end test scenarios
 - **Advanced CI/CD** - Full pipeline with integration tests
 - **Performance Benchmarks** - Automated perf validation
+- **Multi-robot coordination** - Fleet management
 
 ---
 
 _Generated for Lightweight C++ Architecture v2.0_
-_Date: 2025-12-04_
+_Updated: 2025-12-06 (Epic 2 stories 2-1 and 2-2 completed, 2-3 ready for development)_

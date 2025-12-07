@@ -23,9 +23,22 @@ LocoController::LocoController() {
 
 LocoController::~LocoController() = default;
 
-bool LocoController::init(const std::string& network_interface) {
+bool LocoController::init(const std::string& network_interface, int robot_dof) {
 #ifdef HAS_UNITREE_SDK2
     try {
+        // Store robot configuration
+        robot_dof_ = robot_dof;
+
+        // Log robot model info
+        const char* model_name = (robot_dof == G1Model::EDU_23_DOF) ? "EDU (23-DOF)" :
+                                 (robot_dof == G1Model::STANDARD_29_DOF) ? "Standard (29-DOF)" :
+                                 (robot_dof == G1Model::FULL_36_DOF) ? "Full (36-DOF)" : "Unknown";
+        std::cout << "[LOCO] Initializing G1 " << model_name << std::endl;
+
+        if (robot_dof < G1Model::STANDARD_29_DOF) {
+            std::cout << "[LOCO] Note: Arm gestures (waveHand, shakeHand) not available on EDU model" << std::endl;
+        }
+
         // Store network interface for reference
         network_interface_ = network_interface.empty() ? NetworkUtil::findRobotInterface() : network_interface;
 
@@ -40,21 +53,27 @@ bool LocoController::init(const std::string& network_interface) {
         impl_->loco_client_.Init();
         impl_->loco_client_.SetTimeout(10.0f);
 
-        // Wait for valid FSM state
+        // Wait for FSM state (any non-zero response means robot is responding)
         int fsm_id = 0;
-        int retries = 10;
-        while (fsm_id == 0 && retries-- > 0) {
-            impl_->loco_client_.GetFsmId(fsm_id);
-            if (fsm_id == 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        int retries = 5;
+        std::cout << "[LOCO] Waiting for robot response..." << std::endl;
+        while (retries-- > 0) {
+            try {
+                int rc = impl_->loco_client_.GetFsmId(fsm_id);
+                std::cout << "[LOCO] GetFsmId returned: " << fsm_id << " (rc=" << rc << ")" << std::endl;
+                // Any response (even non-standard FSM values) means we're connected
+                if (rc == 0) {
+                    break;  // Success
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[LOCO] GetFsmId exception: " << e.what() << std::endl;
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
-        if (fsm_id == 0) {
-            std::cerr << "[LOCO] Failed to get valid FSM state from robot" << std::endl;
-            std::cerr << "[LOCO] Another controller may have exclusive access." << std::endl;
-            std::cerr << "[LOCO] Try: sudo systemctl stop sport_mode (if running on robot)" << std::endl;
-            std::cerr << "[LOCO] Or restart the robot if issue persists." << std::endl;
+        if (retries < 0) {
+            std::cerr << "[LOCO] Failed to get response from robot after retries" << std::endl;
+            std::cerr << "[LOCO] Check that robot is in SDK-controllable mode (use controller)" << std::endl;
             return false;
         }
 
@@ -203,6 +222,13 @@ void LocoController::emergencyStop() {
 
 bool LocoController::waveHand(bool leftHand) {
 #ifdef HAS_UNITREE_SDK2
+    // Check if robot model supports arm control (requires 29+ DOF)
+    if (!hasArmControl()) {
+        std::cerr << "[LOCO] WaveHand not available on G1 EDU (23-DOF) model" << std::endl;
+        std::cerr << "[LOCO] Arm gestures require G1 Standard (29-DOF) or Full (36-DOF)" << std::endl;
+        return false;
+    }
+
     std::lock_guard<std::mutex> lock(command_mutex_);
     if (!connected_.load()) {
         std::cerr << "[LOCO] Not connected" << std::endl;
@@ -228,6 +254,13 @@ bool LocoController::waveHand(bool leftHand) {
 
 bool LocoController::shakeHand(int stage) {
 #ifdef HAS_UNITREE_SDK2
+    // Check if robot model supports arm control (requires 29+ DOF)
+    if (!hasArmControl()) {
+        std::cerr << "[LOCO] ShakeHand not available on G1 EDU (23-DOF) model" << std::endl;
+        std::cerr << "[LOCO] Arm gestures require G1 Standard (29-DOF) or Full (36-DOF)" << std::endl;
+        return false;
+    }
+
     std::lock_guard<std::mutex> lock(command_mutex_);
     if (!connected_.load()) {
         std::cerr << "[LOCO] Not connected" << std::endl;
@@ -280,7 +313,13 @@ bool LocoController::setVelocitySafe(float vx, float vy, float omega) {
 
 bool LocoController::canSendMotionCommand() const {
     int state = fsm_state_.load();
-    return (state == G1FSM::STANDING || state == G1FSM::WALKING);
+    // G1 allows motion commands in these states:
+    // - START (500): Ready for motion after StandUp
+    // - WALKING (501): Active walking mode
+    // - AI_MODE (801): AI/advanced locomotion mode (common when using high-level control)
+    // - STAND_UP (4): During stand up, some commands may be accepted
+    return (state == G1FSM::START || state == G1FSM::WALKING ||
+            state == G1FSM::AI_MODE || state == G1FSM::STAND_UP);
 }
 
 void LocoController::clampVelocity(float& vx, float& vy, float& omega) const {

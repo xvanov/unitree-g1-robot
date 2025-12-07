@@ -41,12 +41,39 @@ RUN apt-get update && apt-get install -y \
     libpoppler-cpp-dev \
     # nlohmann/json header-only library
     nlohmann-json3-dev \
+    # msgpack-c for binary serialization (Story 2-1)
+    libmsgpack-dev \
+    # zstd for compression (Story 2-1)
+    libzstd-dev \
     # Google Test for unit testing
     libgtest-dev \
+    # GStreamer for video streaming (dev libs + runtime + tools)
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-tools \
+    # PCL (Point Cloud Library) for 3D mapping
+    libpcl-dev \
     # Python for utility scripts (test map generation, etc.)
     python3 \
     python3-numpy \
     python3-pil \
+    # SSH client for auto-stream to robot
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Intel RealSense repository and install SDK
+RUN apt-get update && apt-get install -y software-properties-common \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
+    || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
+    && add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u \
+    && apt-get update && apt-get install -y \
+    librealsense2-dkms \
+    librealsense2-utils \
+    librealsense2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install GTest
@@ -66,6 +93,14 @@ RUN git clone https://github.com/unitreerobotics/unitree_sdk2.git /tmp/unitree_s
     && make -j$(nproc) \
     && make install \
     && rm -rf /tmp/unitree_sdk2
+
+# Clone and build Livox SDK2 (for Mid-360 LiDAR on G1 robot head)
+# Installed to /opt/livox_sdk2 for the project to find
+RUN git clone https://github.com/Livox-SDK/Livox-SDK2.git /opt/Livox-SDK2 \
+    && cd /opt/Livox-SDK2 \
+    && mkdir build && cd build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release \
+    && make -j$(nproc)
 
 # Set environment for CycloneDDS
 ENV CYCLONEDDS_URI=file:///workspace/config/cyclonedds.xml

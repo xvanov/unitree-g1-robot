@@ -21,7 +21,7 @@ set -e
 # ============================================================================
 # Configuration
 # ============================================================================
-ROBOT_IP="192.168.123.164"
+ROBOT_IP="192.168.123.233"
 ROBOT_USER="unitree"
 ROBOT_PASS="123"
 ROBOT_INTERFACE="eth0"  # Network interface on robot for DDS

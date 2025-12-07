@@ -8,9 +8,15 @@ services:
       dockerfile: docker/Dockerfile
     volumes:
       - ..:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 display socket
+      - ~/.ssh:/root/.ssh:ro  # Share host SSH keys (read-only)
     working_dir: /workspace
     tty: true
     stdin_open: true
-    # Environment variables for CycloneDDS (used in hardware integration)
+    # Use host networking to access robot on 192.168.123.x subnet
+    network_mode: host
+    # Environment variables for CycloneDDS and display
     environment:
       - CYCLONEDDS_URI=file:///workspace/config/cyclonedds.xml
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1

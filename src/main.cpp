@@ -19,6 +19,8 @@
 #include "capture/PlanCorrelator.h"
 #include "report/ReportGenerator.h"
 #include "report/ReportTypes.h"
+#include "teleop/TeleopRunner.h"
+#include "replay/ReplayRunner.h"
 
 constexpr const char* VERSION = "G1 Inspector v1.0";
 
@@ -44,6 +46,17 @@ void printUsage() {
               << "  --version, -v        Show version\n"
               << "  --interface <name>   Network interface (default: auto-detect on 192.168.123.x)\n"
               << "  --interactive, -i    Run interactive CLI mode\n"
+              << "  --teleop <mode>      Teleop mode: 'gamepad' or 'keyboard'\n"
+              << "  --robot-ip <ip>      Robot IP for video stream (e.g., 192.168.123.233)\n"
+              << "  --video-source <src> Video source: 'dds' (default), 'gstreamer', 'local', 'none'\n"
+              << "  --no-auto-stream     Don't auto-start video stream on robot (GStreamer only)\n"
+              << "  --dry-run            Skip robot connection (test camera/UI only)\n"
+              << "  --record <session>   Enable recording during teleop (requires --teleop)\n"
+              << "  --plan <path>        Load plan for reference (optional, for teleop recording)\n"
+              << "  --replay <session>   Replay recorded sensor session\n"
+              << "  --replay-speed <n>   Playback speed multiplier (default 1.0)\n"
+              << "  --replay-loop        Loop playback continuously\n"
+              << "  --replay-visualize   Show visualization window during replay\n"
               << "  --test-sensors       Run sensor diagnostics\n"
               << "  --test-loco          Run locomotion test (robot will move!)\n"
               << "  --test-wave          Arm wave test (robot waves hand)\n"
@@ -68,6 +81,11 @@ void printUsage() {
               << "  g1_inspector status                  Show status and exit\n"
               << "  g1_inspector upload --plan floor.png Load plan and exit\n"
               << "  g1_inspector --generate-report --inspection insp_001  Generate report\n"
+              << "  g1_inspector --teleop gamepad        Start gamepad teleop\n"
+              << "  g1_inspector --teleop keyboard       Start keyboard teleop with camera view\n"
+              << "  g1_inspector --teleop keyboard --record my_session  Teleop with recording\n"
+              << "  g1_inspector --replay my_session     Replay recorded session\n"
+              << "  g1_inspector --replay my_session --replay-speed 2.0  Replay at 2x speed\n"
               << std::endl;
 }
 
@@ -202,10 +220,10 @@ int runWaveTest(const std::string& interface) {
 
     auto locomotion = std::make_shared<RealLocomotion>(g_loco_controller);
 
-    // Check if robot is standing
+    // Check if robot is in a ready state (START, WALKING, or AI_MODE)
     int state = locomotion->getState();
-    if (state != G1FSM::STANDING && state != G1FSM::WALKING) {
-        std::cout << "[WAVE] Robot not standing (FSM=" << state << "), attempting to stand up..." << std::endl;
+    if (state != G1FSM::START && state != G1FSM::WALKING && state != G1FSM::AI_MODE) {
+        std::cout << "[WAVE] Robot not ready (FSM=" << state << "), attempting to stand up..." << std::endl;
         if (!locomotion->standUp()) {
             std::cerr << "[ERROR] Failed to stand up" << std::endl;
             return 1;
@@ -676,6 +694,23 @@ int main(int argc, char* argv[]) {
     std::string reportInspectionId;
     std::string singleCommand;
 
+    // Teleop options (Story 2-1)
+    std::string teleopMode;
+    std::string recordSession;
+    std::string planPath;
+    std::string robotIP;  // For video streaming from robot
+    bool autoStream = true;  // Auto-start video stream on robot
+    bool dryRun = false;
+
+    // Replay options (Story 2-2)
+    std::string replaySession;
+    float replaySpeed = 1.0f;
+    bool replayLoop = false;
+    bool replayVisualize = false;
+
+    // Video source option
+    std::string videoSource = "dds";  // Default to DDS
+
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -745,6 +780,111 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        // Teleop options (Story 2-1)
+        if (arg == "--teleop") {
+            if (i + 1 < argc) {
+                teleopMode = argv[++i];
+                if (teleopMode != "gamepad" && teleopMode != "keyboard") {
+                    std::cerr << "Error: --teleop mode must be 'gamepad' or 'keyboard'" << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --teleop requires a mode argument (gamepad/keyboard)" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--dry-run") {
+            dryRun = true;
+            continue;
+        }
+
+        if (arg == "--no-auto-stream") {
+            autoStream = false;
+            continue;
+        }
+
+        if (arg == "--robot-ip") {
+            if (i + 1 < argc) {
+                robotIP = argv[++i];
+            } else {
+                std::cerr << "Error: --robot-ip requires an IP address argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--video-source") {
+            if (i + 1 < argc) {
+                videoSource = argv[++i];
+                if (videoSource != "dds" && videoSource != "gstreamer" &&
+                    videoSource != "local" && videoSource != "none") {
+                    std::cerr << "Error: --video-source must be 'dds', 'gstreamer', 'local', or 'none'" << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --video-source requires a source argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--record") {
+            if (i + 1 < argc) {
+                recordSession = argv[++i];
+            } else {
+                std::cerr << "Error: --record requires a session ID argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--plan") {
+            if (i + 1 < argc) {
+                planPath = argv[++i];
+            } else {
+                std::cerr << "Error: --plan requires a file path argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        // Replay options (Story 2-2)
+        if (arg == "--replay") {
+            if (i + 1 < argc) {
+                replaySession = argv[++i];
+            } else {
+                std::cerr << "Error: --replay requires a session ID argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--replay-speed") {
+            if (i + 1 < argc) {
+                replaySpeed = std::stof(argv[++i]);
+                if (replaySpeed < 0.25f || replaySpeed > 4.0f) {
+                    std::cerr << "Error: --replay-speed must be between 0.25 and 4.0" << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --replay-speed requires a numeric argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--replay-loop") {
+            replayLoop = true;
+            continue;
+        }
+
+        if (arg == "--replay-visualize") {
+            replayVisualize = true;
+            continue;
+        }
+
         // Check if this is a CLI command (doesn't start with -)
         if (!arg.empty() && arg[0] != '-') {
             // Capture this and all remaining args as a single command
@@ -789,6 +929,56 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         return runGenerateReport(reportInspectionId);
+    }
+
+    // Run teleop mode (Story 2-1)
+    if (!teleopMode.empty()) {
+        TeleopRunner runner;
+        runner.setNetworkInterface(interface);
+        runner.setMode(teleopMode == "gamepad" ? TeleopMode::GAMEPAD : TeleopMode::KEYBOARD);
+        runner.setDryRun(dryRun);
+
+        // Set video source
+        VideoSource vidSource = VideoSource::DDS;  // Default
+        if (videoSource == "gstreamer") {
+            vidSource = VideoSource::GSTREAMER;
+        } else if (videoSource == "local") {
+            vidSource = VideoSource::LOCAL;
+        } else if (videoSource == "none") {
+            vidSource = VideoSource::NONE;
+        }
+        runner.setVideoSource(vidSource);
+
+        if (!robotIP.empty()) {
+            runner.setRobotIP(robotIP);
+            runner.setAutoStream(autoStream);
+        }
+
+        if (!recordSession.empty()) {
+            runner.setRecordingEnabled(true, recordSession);
+        }
+
+        if (!planPath.empty()) {
+            runner.setPlanPath(planPath);
+        }
+
+        return runner.run();
+    }
+
+    // Run replay mode (Story 2-2)
+    if (!replaySession.empty()) {
+        replay::ReplayRunner runner;
+        // Check if it's a path or just a session ID
+        if (replaySession.find('/') != std::string::npos) {
+            runner.setRecordingPath(replaySession);
+        } else {
+            runner.setSessionId(replaySession);
+        }
+        runner.setSpeed(replaySpeed);
+        runner.setLoop(replayLoop);
+        runner.setVisualize(replayVisualize);
+
+        return runner.run();
     }
 
     // Run CLI mode

@@ -1,8 +1,10 @@
 #include "sensors/SensorManager.h"
+#include "sensors/LivoxLidar.h"
 #include "util/NetworkUtil.h"
 #include <iostream>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <thread>
 
 #ifdef HAS_UNITREE_SDK2
@@ -105,6 +107,10 @@ public:
         // (not implemented in MVP - getBatteryPercent() returns 0)
 
         parent_->onImuData(imu);
+
+        // Store wireless remote data for teleop (Story 2-1)
+        const auto& remote = msg->wireless_remote();
+        parent_->onWirelessRemote(remote.data());
     }
 
     void onPointCloud(const void* data) {
@@ -134,6 +140,39 @@ bool SensorManager::init(const std::string& network_interface) {
         // Store network interface for reference
         network_interface_ = network_interface.empty() ? NetworkUtil::findRobotInterface() : network_interface;
 
+        // IMPORTANT: Initialize Livox SDK BEFORE Unitree SDK's ChannelFactory
+        // Both SDKs use network sockets and there may be initialization conflicts
+        // Livox must be first as it sets up UDP listeners that could conflict with DDS
+        const char* skip_livox = std::getenv("SKIP_LIVOX");
+        if (skip_livox && std::string(skip_livox) == "1") {
+            std::cout << "[SENSORS] Livox LiDAR skipped (SKIP_LIVOX=1)" << std::endl;
+            use_livox_ = false;
+        } else {
+            try {
+                livox_lidar_ = std::make_unique<LivoxLidar>();
+                if (livox_lidar_->init()) {
+                    use_livox_ = true;
+                    // Wire Livox callback to our LiDAR handler
+                    livox_lidar_->setLidarCallback([this](const LidarScan& scan) {
+                        onLidarData(scan);
+                    });
+                    std::cout << "[SENSORS] Livox Mid-360 LiDAR initialized" << std::endl;
+                } else {
+                    std::cout << "[SENSORS] Livox LiDAR init returned false, continuing without LiDAR" << std::endl;
+                    livox_lidar_.reset();
+                    use_livox_ = false;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[SENSORS] Livox LiDAR exception: " << e.what() << std::endl;
+                livox_lidar_.reset();
+                use_livox_ = false;
+            } catch (...) {
+                std::cerr << "[SENSORS] Livox LiDAR unknown exception" << std::endl;
+                livox_lidar_.reset();
+                use_livox_ = false;
+            }
+        }
+
         // Initialize ChannelFactory using centralized singleton
         // Safe to call multiple times - only initializes once across all SDK users
         if (!NetworkUtil::initChannelFactory(network_interface_)) {
@@ -141,30 +180,40 @@ bool SensorManager::init(const std::string& network_interface) {
             return false;
         }
 
-        // Create LowState subscriber
+        // Create LowState subscriber (for IMU and wireless remote)
         auto state_handler = [this](const void* data) { impl_->onLowState(data); };
         impl_->state_sub_ = std::make_unique<unitree::robot::ChannelSubscriber<unitree_hg::msg::dds_::LowState_>>(
             "rt/lowstate", state_handler);
         impl_->state_sub_->InitChannel();
         std::cout << "[SENSORS] LowState subscriber initialized" << std::endl;
 
-        // Create LiDAR subscriber
-        auto lidar_handler = [this](const void* data) { impl_->onPointCloud(data); };
-        impl_->lidar_sub_ = std::make_unique<unitree::robot::ChannelSubscriber<sensor_msgs::msg::dds_::PointCloud2_>>(
-            "rt/utlidar/cloud", lidar_handler);
-        impl_->lidar_sub_->InitChannel();
-        std::cout << "[SENSORS] LiDAR subscriber initialized" << std::endl;
+        // If Livox not available, try DDS fallback
+        if (!use_livox_) {
+            // Fallback: Create DDS LiDAR subscriber (may not work on G1)
+            auto lidar_handler = [this](const void* data) { impl_->onPointCloud(data); };
+            impl_->lidar_sub_ = std::make_unique<unitree::robot::ChannelSubscriber<sensor_msgs::msg::dds_::PointCloud2_>>(
+                "rt/utlidar/cloud", lidar_handler);
+            impl_->lidar_sub_->InitChannel();
+            std::cout << "[SENSORS] DDS LiDAR subscriber initialized (fallback)" << std::endl;
+        }
 
         // Brief settling time for DDS discovery before waiting for data
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         // Wait for initial connection (timeout after 5 seconds)
+        // Note: Even if DDS times out, Livox LiDAR may still be working
         std::cout << "[SENSORS] Waiting for sensor data..." << std::endl;
         auto start = std::chrono::steady_clock::now();
         while (!connected_.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             auto elapsed = std::chrono::steady_clock::now() - start;
             if (elapsed > std::chrono::seconds(5)) {
+                if (use_livox_ && livox_lidar_ && livox_lidar_->isConnected()) {
+                    // Livox is working even though DDS isn't - continue with LiDAR only
+                    std::cerr << "[SENSORS] DDS timeout, but Livox LiDAR is connected - continuing" << std::endl;
+                    connected_.store(true);  // Mark as connected via Livox
+                    break;
+                }
                 std::cerr << "[SENSORS] Timeout waiting for sensor data" << std::endl;
                 std::cerr << "[SENSORS] Check that robot is powered on and network is configured" << std::endl;
                 return false;
@@ -205,6 +254,18 @@ ImuData SensorManager::getLatestImu() const {
 
 float SensorManager::getBatteryPercent() const {
     return battery_percent_.load();
+}
+
+Pose2D SensorManager::getEstimatedPose() const {
+    // Simple pose estimate: use IMU yaw for orientation
+    // X, Y are zeros (no odometry integration in MVP)
+    // Full SLAM/odometry would provide complete pose
+    std::lock_guard<std::mutex> lock(imu_mutex_);
+    Pose2D pose;
+    pose.x = 0.0f;
+    pose.y = 0.0f;
+    pose.theta = latest_imu_.yaw;
+    return pose;
 }
 
 bool SensorManager::isConnected() const {
@@ -273,4 +334,19 @@ void SensorManager::onImuData(const ImuData& data) {
     if (imu_callback_) {
         imu_callback_(data);
     }
+}
+
+void SensorManager::onWirelessRemote(const uint8_t* data) {
+    std::lock_guard<std::mutex> lock(remote_mutex_);
+    std::memcpy(wireless_remote_, data, 40);
+    remote_available_.store(true);
+}
+
+bool SensorManager::getRawWirelessRemote(uint8_t out_buffer[40]) const {
+    if (!remote_available_.load()) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(remote_mutex_);
+    std::memcpy(out_buffer, wireless_remote_, 40);
+    return true;
 }

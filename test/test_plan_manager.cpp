@@ -18,12 +18,12 @@ TEST_F(PlanManagerTest, InitialStateNotLoaded) {
 // Test loading PNG plan
 TEST_F(PlanManagerTest, LoadPngPlan) {
     // Use the test_data/office.png that exists in the repo
-    bool loaded = pm.loadPlan("test_data/office.png", "finishes");
+    bool loaded = pm.loadPlan(TEST_DATA_DIR "/office.png", "finishes");
     EXPECT_TRUE(loaded);
     EXPECT_TRUE(pm.isLoaded());
 
     auto info = pm.getPlanInfo();
-    EXPECT_EQ(info.path, "test_data/office.png");
+    EXPECT_EQ(info.path, TEST_DATA_DIR "/office.png");
     EXPECT_EQ(info.trade_type, "finishes");
     EXPECT_GT(info.width_pixels, 0);
     EXPECT_GT(info.height_pixels, 0);
@@ -47,7 +47,7 @@ TEST_F(PlanManagerTest, UnsupportedFormat) {
 
 // Test waypoint generation
 TEST_F(PlanManagerTest, WaypointGeneration) {
-    pm.loadPlan("test_data/office.png");
+    pm.loadPlan(TEST_DATA_DIR "/office.png");
     const auto& waypoints = pm.getInspectionWaypoints();
 
     auto info = pm.getPlanInfo();
@@ -111,7 +111,7 @@ TEST_F(PlanManagerTest, CoordinateTransformWithRotation) {
 
 // Test occupancy grid generation
 TEST_F(PlanManagerTest, OccupancyGrid) {
-    pm.loadPlan("test_data/office.png");
+    pm.loadPlan(TEST_DATA_DIR "/office.png");
 
     auto grid = pm.getOccupancyGrid();
     EXPECT_GT(grid.size(), 0);
@@ -128,7 +128,7 @@ TEST_F(PlanManagerTest, OccupancyGrid) {
 
 // Test plan resolution
 TEST_F(PlanManagerTest, Resolution) {
-    pm.loadPlan("test_data/office.png");
+    pm.loadPlan(TEST_DATA_DIR "/office.png");
 
     float resolution = pm.getResolution();
     EXPECT_GT(resolution, 0.0f);
@@ -137,7 +137,7 @@ TEST_F(PlanManagerTest, Resolution) {
 
 // Test plan info
 TEST_F(PlanManagerTest, PlanInfo) {
-    pm.loadPlan("test_data/corridor.png", "electrical");
+    pm.loadPlan(TEST_DATA_DIR "/corridor.png", "electrical");
 
     auto info = pm.getPlanInfo();
     EXPECT_EQ(info.trade_type, "electrical");
@@ -147,13 +147,13 @@ TEST_F(PlanManagerTest, PlanInfo) {
 
 // Test multiple loads replace previous plan
 TEST_F(PlanManagerTest, MultiplePlansReplacePrevious) {
-    pm.loadPlan("test_data/office.png", "finishes");
+    pm.loadPlan(TEST_DATA_DIR "/office.png", "finishes");
     auto info1 = pm.getPlanInfo();
 
-    pm.loadPlan("test_data/corridor.png", "plumbing");
+    pm.loadPlan(TEST_DATA_DIR "/corridor.png", "plumbing");
     auto info2 = pm.getPlanInfo();
 
-    EXPECT_EQ(info2.path, "test_data/corridor.png");
+    EXPECT_EQ(info2.path, TEST_DATA_DIR "/corridor.png");
     EXPECT_EQ(info2.trade_type, "plumbing");
 }
 

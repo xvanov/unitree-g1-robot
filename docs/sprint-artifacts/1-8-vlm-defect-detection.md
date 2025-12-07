@@ -1,6 +1,6 @@
 # Story 1.8: VLM Defect Detection
 
-**Status:** Ready for Review
+**Status:** Done
 
 ---
 

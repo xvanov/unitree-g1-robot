@@ -66,7 +66,7 @@ cat > "${BASE_DIR}/analysis_results.json" << 'EOF'
 EOF
 
 # Create a simple test plan image (gray rectangle)
-# Uses ImageMagick if available, otherwise creates empty placeholder
+# Uses ImageMagick if available, otherwise copies existing test image
 if command -v convert &> /dev/null; then
     convert -size 800x600 xc:white \
         -fill lightgray -draw "rectangle 50,50 750,550" \
@@ -75,9 +75,11 @@ if command -v convert &> /dev/null; then
         "${BASE_DIR}/plan.png"
     echo "Created plan.png with ImageMagick"
 else
-    # Create minimal valid PNG (1x1 white pixel) as placeholder
-    echo -n -e '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe\xa7V\xcf\x00\x00\x00\x00IEND\xaeB`\x82' > "${BASE_DIR}/plan.png"
-    echo "Created placeholder plan.png (ImageMagick not available)"
+    # Use existing test data PNG as placeholder
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+    cp "${PROJECT_ROOT}/test_data/office.png" "${BASE_DIR}/plan.png"
+    echo "Copied test_data/office.png as plan.png (ImageMagick not available)"
 fi
 
 # Create mock image metadata files

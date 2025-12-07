@@ -40,14 +40,16 @@ TEST_F(VelocityClampTest, ClampOmegaExceedsMax) {
     testClampValue(2.0f, -SafetyLimits::MAX_OMEGA, SafetyLimits::MAX_OMEGA, SafetyLimits::MAX_OMEGA);
 }
 
-// Test FSM state constants
+// Test FSM state constants (G1 SDK values)
 TEST(G1FSMTest, StateConstants) {
-    EXPECT_EQ(G1FSM::INVALID, 0);
+    EXPECT_EQ(G1FSM::ZERO_TORQUE, 0);
     EXPECT_EQ(G1FSM::DAMP, 1);
-    EXPECT_EQ(G1FSM::STAND_UP, 2);
-    EXPECT_EQ(G1FSM::STAND_DOWN, 3);
-    EXPECT_EQ(G1FSM::STANDING, 100);
-    EXPECT_EQ(G1FSM::WALKING, 101);
+    EXPECT_EQ(G1FSM::SQUAT, 2);
+    EXPECT_EQ(G1FSM::SIT, 3);
+    EXPECT_EQ(G1FSM::STAND_UP, 4);
+    EXPECT_EQ(G1FSM::START, 500);
+    EXPECT_EQ(G1FSM::WALKING, 501);
+    EXPECT_EQ(G1FSM::AI_MODE, 801);
 }
 
 // Test safety limits values
@@ -78,15 +80,18 @@ TEST(ImuDataTest, DefaultInitialization) {
 
 // Test that canSendMotionCommand logic works correctly
 TEST(G1FSMTest, MotionAllowedStates) {
-    // Only STANDING (100) and WALKING (101) should allow motion
+    // G1 allows motion in START (500), WALKING (501), AI_MODE (801), and STAND_UP (4)
     auto canMove = [](int state) {
-        return (state == G1FSM::STANDING || state == G1FSM::WALKING);
+        return (state == G1FSM::START || state == G1FSM::WALKING ||
+                state == G1FSM::AI_MODE || state == G1FSM::STAND_UP);
     };
 
-    EXPECT_FALSE(canMove(G1FSM::INVALID));
+    EXPECT_FALSE(canMove(G1FSM::ZERO_TORQUE));
     EXPECT_FALSE(canMove(G1FSM::DAMP));
-    EXPECT_FALSE(canMove(G1FSM::STAND_UP));
-    EXPECT_FALSE(canMove(G1FSM::STAND_DOWN));
-    EXPECT_TRUE(canMove(G1FSM::STANDING));
+    EXPECT_FALSE(canMove(G1FSM::SQUAT));
+    EXPECT_FALSE(canMove(G1FSM::SIT));
+    EXPECT_TRUE(canMove(G1FSM::STAND_UP));
+    EXPECT_TRUE(canMove(G1FSM::START));
     EXPECT_TRUE(canMove(G1FSM::WALKING));
+    EXPECT_TRUE(canMove(G1FSM::AI_MODE));
 }

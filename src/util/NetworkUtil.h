@@ -7,6 +7,7 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <iostream>
 #include "unitree/robot/channel/channel_factory.hpp"
 
@@ -14,6 +15,7 @@ namespace NetworkUtil {
 
 // Find network interface connected to robot subnet (192.168.123.x)
 // Returns interface name (e.g., "eth0", "en0") or "eth0" as fallback
+// Prefers wireless interfaces (wl*) over ethernet to avoid stale interface issues
 inline std::string findRobotInterface() {
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {
@@ -21,34 +23,53 @@ inline std::string findRobotInterface() {
         return "eth0";
     }
 
-    std::string result = "";
-    bool found = false;
+    std::string wlan_result = "";
+    std::string eth_result = "";
+    std::string wlan_ip = "";
+    std::string eth_ip = "";
+
     for (auto* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_INET) continue;
 
+        // Skip interfaces that aren't UP and RUNNING
+        if (!(ifa->ifa_flags & IFF_UP) || !(ifa->ifa_flags & IFF_RUNNING)) continue;
+
         auto* addr = (struct sockaddr_in*)ifa->ifa_addr;
         std::string ip = inet_ntoa(addr->sin_addr);
+        std::string name = ifa->ifa_name;
 
         // Check if on robot subnet 192.168.123.x
         if (ip.find("192.168.123.") == 0) {
-            result = ifa->ifa_name;
-            found = true;
-            std::cout << "[NETWORK] Found robot subnet on interface '" << result
-                      << "' (" << ip << ")" << std::endl;
-            break;
+            // Prefer wireless interfaces (wl*, wlan*) - more reliable in Docker/host setups
+            if (name.find("wl") == 0 || name.find("wlan") == 0) {
+                wlan_result = name;
+                wlan_ip = ip;
+            } else if (eth_result.empty()) {
+                eth_result = name;
+                eth_ip = ip;
+            }
         }
     }
     freeifaddrs(ifaddr);
 
-    if (!found) {
-        std::cerr << "[NETWORK] No interface found on robot subnet 192.168.123.x" << std::endl;
-        std::cerr << "[NETWORK] Verify your network configuration:" << std::endl;
-        std::cerr << "  Linux:  sudo ip addr add 192.168.123.100/24 dev eth0" << std::endl;
-        std::cerr << "  Mac:    System Preferences > Network > Configure IPv4: Manually" << std::endl;
-        std::cerr << "          IP: 192.168.123.100, Subnet: 255.255.255.0" << std::endl;
-        result = "eth0";
+    // Prefer wireless over ethernet
+    if (!wlan_result.empty()) {
+        std::cout << "[NETWORK] Found robot subnet on interface '" << wlan_result
+                  << "' (" << wlan_ip << ")" << std::endl;
+        return wlan_result;
     }
-    return result;
+    if (!eth_result.empty()) {
+        std::cout << "[NETWORK] Found robot subnet on interface '" << eth_result
+                  << "' (" << eth_ip << ")" << std::endl;
+        return eth_result;
+    }
+
+    std::cerr << "[NETWORK] No interface found on robot subnet 192.168.123.x" << std::endl;
+    std::cerr << "[NETWORK] Verify your network configuration:" << std::endl;
+    std::cerr << "  Linux:  sudo ip addr add 192.168.123.100/24 dev eth0" << std::endl;
+    std::cerr << "  Mac:    System Preferences > Network > Configure IPv4: Manually" << std::endl;
+    std::cerr << "          IP: 192.168.123.100, Subnet: 255.255.255.0" << std::endl;
+    return "eth0";
 }
 
 // Thread-safe singleton initialization for ChannelFactory

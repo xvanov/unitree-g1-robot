@@ -68,7 +68,7 @@ workflow_status:
         status: "docs/epics.md"
         agent: "pm"
         command: "create-epics-and-stories"
-        note: "14 stories defined, sequential dependency"
+        note: "2 epics, 12 stories total. Epic 1 (9 stories) complete. Epic 2 (3 stories) in progress."
 
       - id: "test-design"
         status: "recommended"
@@ -81,7 +81,7 @@ workflow_status:
         command: "validate-architecture"
 
       - id: "implementation-readiness"
-        status: "docs/implementation-readiness-report-2025-12-04.md"
+        status: "docs/implementation-readiness-report-2025-12-06.md"
         agent: "architect"
         command: "implementation-readiness"
 
@@ -99,7 +99,32 @@ workflow_status:
 current:
   phase: 3
   workflow: "dev-story"
-  next_story: "1-8-vlm-defect-detection"
+  next_story: "2-3-e2e-replay-test"
   next_agent: "dev"
   next_command: "/bmad:bmm:workflows:dev-story"
-  note: "Stories 1-1, 1-2, 1-3, 1-4, 1-5, 1-6 completed. Story 1-7 in review."
+  note: "Epic 1 complete. Epic 2 in progress - stories 2-1 and 2-2 done, 2-3 ready for development."
+
+# Epic completion summary
+epics:
+  epic-1:
+    name: "Construction Site Inspector MVP"
+    status: "done"
+    stories_completed: 9
+    stories_total: 9
+  epic-2:
+    name: "E2E Testing Infrastructure"
+    status: "in-progress"
+    stories_completed: 2
+    stories_total: 3
+    stories:
+      - id: "2-1-teleop-sensor-recording"
+        status: "done"
+        file: "docs/sprint-artifacts/2-1-teleop-sensor-recording.md"
+        completed: "2025-12-06"
+      - id: "2-2-replay-system"
+        status: "done"
+        file: "docs/sprint-artifacts/2-2-replay-system.md"
+        completed: "2025-12-06"
+      - id: "2-3-e2e-replay-test"
+        status: "drafted"
+        file: "docs/sprint-artifacts/2-3-e2e-replay-test.md"

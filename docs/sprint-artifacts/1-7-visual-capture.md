@@ -1,6 +1,6 @@
 # Story 1.7: Visual Capture
 
-**Status:** Ready for Review
+**Status:** Done
 
 ---
 
