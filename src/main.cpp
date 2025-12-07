@@ -49,6 +49,7 @@ void printUsage() {
               << "  --teleop <mode>      Teleop mode: 'gamepad' or 'keyboard'\n"
               << "  --robot-ip <ip>      Robot IP for video stream (e.g., 192.168.123.233)\n"
               << "  --video-source <src> Video source: 'dds' (default), 'gstreamer', 'local', 'none'\n"
+              << "  --depth-port <port>  Enable depth streaming on port (e.g., 5001). Robot must run depth_stream_server\n"
               << "  --no-auto-stream     Don't auto-start video stream on robot (GStreamer only)\n"
               << "  --dry-run            Skip robot connection (test camera/UI only)\n"
               << "  --record <session>   Enable recording during teleop (requires --teleop)\n"
@@ -710,6 +711,7 @@ int main(int argc, char* argv[]) {
 
     // Video source option
     std::string videoSource = "dds";  // Default to DDS
+    int depthPort = 0;  // 0 = disabled, e.g., 5001 to enable
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -825,6 +827,20 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 std::cerr << "Error: --video-source requires a source argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--depth-port") {
+            if (i + 1 < argc) {
+                depthPort = std::stoi(argv[++i]);
+                if (depthPort < 0 || depthPort > 65535) {
+                    std::cerr << "Error: --depth-port must be between 0 and 65535" << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --depth-port requires a port number argument" << std::endl;
                 return 1;
             }
             continue;
@@ -948,6 +964,10 @@ int main(int argc, char* argv[]) {
             vidSource = VideoSource::NONE;
         }
         runner.setVideoSource(vidSource);
+
+        if (depthPort > 0) {
+            runner.setDepthPort(depthPort);
+        }
 
         if (!robotIP.empty()) {
             runner.setRobotIP(robotIP);

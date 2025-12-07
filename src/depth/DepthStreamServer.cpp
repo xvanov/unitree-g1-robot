@@ -63,6 +63,16 @@ bool DepthStreamServer::start(const std::string& client_ip, int port) {
         return false;
     }
 
+    // Enable broadcast if using broadcast address
+    if (client_ip == "255.255.255.255" || client_ip.find(".255") != std::string::npos) {
+        int broadcast = 1;
+        if (setsockopt(socket_fd_, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+            std::cerr << "[DEPTH_SERVER] Warning: Failed to enable broadcast" << std::endl;
+        } else {
+            std::cout << "[DEPTH_SERVER] Broadcast mode enabled" << std::endl;
+        }
+    }
+
     // Start RealSense
     if (!depth_capture_->startCapture()) {
         std::cerr << "[DEPTH_SERVER] Failed to start capture" << std::endl;
@@ -74,7 +84,11 @@ bool DepthStreamServer::start(const std::string& client_ip, int port) {
     running_.store(true);
     stream_thread_ = std::thread(&DepthStreamServer::streamLoop, this);
 
-    std::cout << "[DEPTH_SERVER] Streaming to " << client_ip << ":" << port << std::endl;
+    if (client_ip == "255.255.255.255" || client_ip.find(".255") != std::string::npos) {
+        std::cout << "[DEPTH_SERVER] Broadcasting to port " << port << " (any client can receive)" << std::endl;
+    } else {
+        std::cout << "[DEPTH_SERVER] Streaming to " << client_ip << ":" << port << std::endl;
+    }
     return true;
 #endif
 }
@@ -148,9 +162,10 @@ void DepthStreamServer::streamLoop() {
         cv::imencode(".png", frame.depth, depth_png, png_params);
 
         // Pack frame data with msgpack
+        // Note: 11 key-value pairs: ts, w, h, n, fx, fy, cx, cy, s, c (color), d (depth)
         msgpack::sbuffer sbuf;
         msgpack::packer<msgpack::sbuffer> pk(&sbuf);
-        pk.pack_map(10);
+        pk.pack_map(11);
         pk.pack("ts"); pk.pack(static_cast<uint64_t>(frame.timestamp * 1e6));
         pk.pack("w"); pk.pack(static_cast<uint32_t>(frame.depth.cols));
         pk.pack("h"); pk.pack(static_cast<uint32_t>(frame.depth.rows));

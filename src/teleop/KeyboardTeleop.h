@@ -11,6 +11,7 @@ class SensorManager;
 class LocoController;
 class SensorRecorder;
 class DDSVideoClient;
+class DepthStreamClient;
 
 // Video source options
 enum class VideoSource {
@@ -43,6 +44,7 @@ public:
     void setRobotIP(const std::string& ip) { robot_ip_ = ip; }
     void setVideoSource(VideoSource source) { video_source_ = source; }
     void setNetworkInterface(const std::string& iface) { network_interface_ = iface; }
+    void setDepthPort(int port) { depth_port_ = port; }  // 0 = disabled
 
 private:
     // Process keyboard input, returns true to continue, false to quit
@@ -58,6 +60,7 @@ private:
     bool initDDSVideo();
     bool initGStreamerVideo();
     bool initLocalCamera();
+    bool initDepthStream();
 
     // Draw overlay on camera frame
     void drawOverlay(cv::Mat& frame);
@@ -79,14 +82,22 @@ private:
     // Video sources
     cv::VideoCapture camera_;         // For GStreamer/local camera
     std::unique_ptr<DDSVideoClient> dds_video_;  // For DDS video
+    std::unique_ptr<DepthStreamClient> depth_client_;  // For depth stream
     int camera_index_ = 0;
     bool camera_available_ = false;
+    bool depth_available_ = false;
     cv::Mat last_frame_;
+    cv::Mat last_depth_;              // Last depth frame (16-bit)
+    cv::Mat last_depth_color_;        // Colorized depth for display
     std::vector<uint8_t> last_jpeg_;  // For recording
+    std::vector<uint8_t> last_depth_png_;  // For depth recording
+    float depth_fx_ = 0, depth_fy_ = 0, depth_cx_ = 0, depth_cy_ = 0;
+    float depth_scale_ = 0.001f;
     std::string gstreamer_pipeline_;  // Custom GStreamer pipeline (empty = use camera_index_)
     std::string robot_ip_;            // Robot IP for UDP stream receiving
     std::string network_interface_;   // Network interface for DDS
     VideoSource video_source_ = VideoSource::DDS;  // Default to DDS
+    int depth_port_ = 0;              // Depth stream port (0 = disabled)
 
     // Control state
     std::atomic<bool> running_{false};

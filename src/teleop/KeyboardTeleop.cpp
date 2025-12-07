@@ -1,5 +1,6 @@
 #include "teleop/KeyboardTeleop.h"
 #include "teleop/DDSVideoClient.h"
+#include "depth/DepthStreamServer.h"  // For DepthStreamClient
 #include "sensors/SensorManager.h"
 #include "locomotion/LocoController.h"
 #include "recording/SensorRecorder.h"
@@ -19,6 +20,9 @@ KeyboardTeleop::KeyboardTeleop(SensorManager* sensors, LocoController* loco,
 }
 
 KeyboardTeleop::~KeyboardTeleop() {
+    if (depth_client_) {
+        depth_client_->stop();
+    }
     if (dds_video_) {
         dds_video_->stop();
     }
@@ -31,8 +35,16 @@ KeyboardTeleop::~KeyboardTeleop() {
 void KeyboardTeleop::run() {
     running_ = true;
 
-    // Initialize video source
-    initVideoSource();
+    // Initialize depth stream FIRST if enabled (it provides both color + depth)
+    // This must happen before DDS video since they compete for the same camera
+    if (depth_port_ > 0) {
+        initDepthStream();
+    }
+
+    // Initialize video source (will be used as fallback if depth not available)
+    if (!depth_available_) {
+        initVideoSource();
+    }
 
     // Create window
     cv::namedWindow(WINDOW_NAME, cv::WINDOW_AUTOSIZE);
@@ -70,8 +82,30 @@ void KeyboardTeleop::run() {
         // Draw overlay
         drawOverlay(frame);
 
+        // Create display frame - side by side if depth available
+        cv::Mat display_frame;
+        if (depth_available_ && !last_depth_color_.empty()) {
+            // Resize depth to match color frame height
+            cv::Mat depth_resized;
+            if (last_depth_color_.rows != frame.rows) {
+                double scale = static_cast<double>(frame.rows) / last_depth_color_.rows;
+                cv::resize(last_depth_color_, depth_resized, cv::Size(), scale, scale);
+            } else {
+                depth_resized = last_depth_color_;
+            }
+
+            // Add label to depth
+            cv::putText(depth_resized, "DEPTH", cv::Point(10, 30),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(255, 255, 255), 2);
+
+            // Concatenate side by side
+            cv::hconcat(frame, depth_resized, display_frame);
+        } else {
+            display_frame = frame;
+        }
+
         // Show frame
-        cv::imshow(WINDOW_NAME, frame);
+        cv::imshow(WINDOW_NAME, display_frame);
 
         // Process keyboard input (wait 1ms for key)
         int key = cv::waitKey(1);
@@ -332,9 +366,93 @@ bool KeyboardTeleop::initLocalCamera() {
     return true;  // Not a fatal error
 }
 
+bool KeyboardTeleop::initDepthStream() {
+    if (depth_port_ <= 0) {
+        return false;
+    }
+
+    std::cout << "[TELEOP] Initializing depth stream on port " << depth_port_ << std::endl;
+
+    depth_client_ = std::make_unique<DepthStreamClient>();
+    if (!depth_client_->start(depth_port_)) {
+        std::cerr << "[TELEOP] Failed to start depth client on port " << depth_port_ << std::endl;
+        depth_client_.reset();
+        return false;
+    }
+
+    // Wait briefly for first frame
+    std::cout << "[TELEOP] Waiting for depth stream..." << std::endl;
+    for (int i = 0; i < 30; i++) {  // Wait up to 3 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        auto frame = depth_client_->getLatestFrame();
+        if (frame.valid) {
+            depth_available_ = true;
+            std::cout << "[TELEOP] Depth stream connected: " << frame.width << "x" << frame.height
+                      << " (fx=" << frame.fx << ", scale=" << frame.depth_scale << ")" << std::endl;
+            return true;
+        }
+    }
+
+    std::cout << "[TELEOP] Timeout waiting for depth stream" << std::endl;
+    std::cout << "[TELEOP] Is depth_stream_server running on robot?" << std::endl;
+    std::cout << "[TELEOP]   ssh unitree@<robot_ip> 'cd ~/g1_inspector/build && ./depth_stream_server <your_ip> " << depth_port_ << "'" << std::endl;
+    // Keep client running - it might connect later
+    depth_available_ = false;
+    return true;  // Not a fatal error
+}
+
 bool KeyboardTeleop::updateCamera() {
-    // Try DDS first if available
-    if (dds_video_ && dds_video_->isRunning()) {
+    bool got_video = false;
+
+    // Try depth client first if available (provides both color + depth)
+    if (depth_client_) {
+        auto depth_frame = depth_client_->getLatestFrame();
+        if (depth_frame.valid) {
+            // Use color from depth stream as primary video
+            last_frame_ = depth_frame.color.clone();
+            last_depth_ = depth_frame.depth.clone();
+
+            // Store intrinsics
+            depth_fx_ = depth_frame.fx;
+            depth_fy_ = depth_frame.fy;
+            depth_cx_ = depth_frame.cx;
+            depth_cy_ = depth_frame.cy;
+            depth_scale_ = depth_frame.depth_scale;
+
+            // Colorize depth for display (0-5m range)
+            cv::Mat depth_normalized;
+            double max_depth_mm = 5000.0;  // 5 meters
+            last_depth_.convertTo(depth_normalized, CV_8U, 255.0 / max_depth_mm);
+            cv::applyColorMap(depth_normalized, last_depth_color_, cv::COLORMAP_JET);
+
+            camera_available_ = true;
+            depth_available_ = true;
+            got_video = true;
+
+            // Record depth frame if recording is active
+            if (recorder_ && recorder_->isRecording()) {
+                // Encode color to JPEG
+                std::vector<uint8_t> color_jpeg;
+                std::vector<int> jpeg_params = {cv::IMWRITE_JPEG_QUALITY, 85};
+                cv::imencode(".jpg", depth_frame.color, color_jpeg, jpeg_params);
+
+                // Encode depth to PNG (lossless 16-bit)
+                std::vector<uint8_t> depth_png;
+                std::vector<int> png_params = {cv::IMWRITE_PNG_COMPRESSION, 3};
+                cv::imencode(".png", depth_frame.depth, depth_png, png_params);
+
+                recorder_->recordDepthFrame(color_jpeg, depth_png,
+                                           depth_fx_, depth_fy_, depth_cx_, depth_cy_,
+                                           depth_scale_);
+
+                // Also record as video frame for compatibility
+                recorder_->recordVideoFrame(color_jpeg);
+            }
+        }
+    }
+
+    // Try DDS video if we didn't get video from depth stream
+    if (!got_video && dds_video_ && dds_video_->isRunning()) {
         cv::Mat frame = dds_video_->getLatestFrame();
         if (!frame.empty()) {
             last_frame_ = frame;
@@ -346,12 +464,12 @@ bool KeyboardTeleop::updateCamera() {
                 recorder_->recordVideoFrame(last_jpeg_);
             }
 
-            return true;
+            got_video = true;
         }
     }
 
     // Fall back to OpenCV camera
-    if (camera_.isOpened()) {
+    if (!got_video && camera_.isOpened()) {
         cv::Mat frame;
         camera_ >> frame;
         if (!frame.empty()) {
@@ -363,11 +481,11 @@ bool KeyboardTeleop::updateCamera() {
                 recorder_->recordVideoFrame({}, frame);
             }
 
-            return true;
+            got_video = true;
         }
     }
 
-    return false;
+    return got_video;
 }
 
 void KeyboardTeleop::drawOverlay(cv::Mat& frame) {

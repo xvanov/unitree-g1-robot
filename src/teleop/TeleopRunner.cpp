@@ -249,6 +249,11 @@ int TeleopRunner::runKeyboardMode() {
     keyboard_teleop_->setVideoSource(video_source_);
     keyboard_teleop_->setNetworkInterface(network_interface_);
 
+    // Configure depth streaming if enabled
+    if (depth_port_ > 0) {
+        keyboard_teleop_->setDepthPort(depth_port_);
+    }
+
     // Set robot IP for GStreamer fallback if specified
     if (!robot_ip_.empty()) {
         keyboard_teleop_->setRobotIP(robot_ip_);

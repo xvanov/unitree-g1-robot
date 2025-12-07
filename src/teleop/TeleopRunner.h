@@ -34,6 +34,7 @@ public:
     void setRobotIP(const std::string& ip) { robot_ip_ = ip; }
     void setAutoStream(bool auto_stream) { auto_stream_ = auto_stream; }
     void setVideoSource(VideoSource source) { video_source_ = source; }
+    void setDepthPort(int port) { depth_port_ = port; }
 
     // Run teleop (blocking - returns when user quits or signal received)
     // Returns 0 on success, non-zero on error
@@ -77,6 +78,7 @@ private:
     bool dry_run_ = false;  // Skip robot connection, just test camera/UI
     bool auto_stream_ = true;  // Auto-start video stream on robot via SSH (only for GStreamer)
     VideoSource video_source_ = VideoSource::DDS;  // Default to DDS video
+    int depth_port_ = 0;  // Depth streaming port (0 = disabled)
     pid_t stream_pid_ = -1;  // PID of the stream process
 
     // State

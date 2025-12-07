@@ -264,6 +264,21 @@ target_link_libraries(recording
 )
 
 # ============================================
+# Depth Stream Client (no RealSense required - for dev machine)
+# ============================================
+add_library(depth_stream_client
+    src/depth/DepthStreamClient.cpp
+)
+target_include_directories(depth_stream_client PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${MSGPACK_INCLUDE_DIR}
+)
+target_link_libraries(depth_stream_client
+    ${OpenCV_LIBS}
+    pthread
+)
+
+# ============================================
 # Teleop (Story 2-1)
 # ============================================
 
@@ -279,6 +294,7 @@ target_link_libraries(teleop
     sensors
     loco_hw
     recording
+    depth_stream_client
     ${OpenCV_LIBS}
 )
 if(unitree_sdk2_FOUND)
@@ -421,19 +437,6 @@ if(realsense2_FOUND)
     target_link_libraries(depth_stream_server depth_stream ${OpenCV_LIBS})
     target_compile_definitions(depth_stream_server PRIVATE HAS_REALSENSE)
 endif()
-
-# Depth stream client library (NO RealSense required - runs on dev machine)
-add_library(depth_stream_client
-    src/depth/DepthStreamClient.cpp
-)
-target_include_directories(depth_stream_client PUBLIC
-    ${CMAKE_SOURCE_DIR}/src
-    ${MSGPACK_INCLUDE_DIR}
-)
-target_link_libraries(depth_stream_client
-    ${OpenCV_LIBS}
-    pthread
-)
 
 # Depth capture tool (receives stream from robot, saves locally)
 add_executable(depth_capture_tool tools/depth_capture.cpp)

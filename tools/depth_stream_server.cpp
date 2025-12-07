@@ -1,7 +1,8 @@
 // Depth streaming server - runs on robot
-// Usage: ./depth_stream_server <client_ip> [port]
+// Usage: ./depth_stream_server <target_ip> [port] [fps]
 //
-// Streams RealSense depth+color frames over UDP to the specified client.
+// Streams RealSense depth+color frames over UDP.
+// Use broadcast address (e.g., 192.168.123.255) to allow any client to receive.
 
 #include <iostream>
 #include <csignal>
@@ -26,23 +27,29 @@ int main(int argc, char** argv) {
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    if (argc < 2) {
-        std::cout << "Usage: " << argv[0] << " <client_ip> [port] [fps]" << std::endl;
+    // Default to broadcast if no IP specified
+    std::string client_ip = "192.168.123.255";
+
+    if (argc >= 2 && std::string(argv[1]) != "--help" && std::string(argv[1]) != "-h") {
+        client_ip = argv[1];
+    } else if (argc >= 2) {
+        std::cout << "Usage: " << argv[0] << " [target_ip] [port] [fps]" << std::endl;
         std::cout << std::endl;
         std::cout << "Streams RealSense depth+color frames over UDP." << std::endl;
         std::cout << std::endl;
         std::cout << "Arguments:" << std::endl;
-        std::cout << "  client_ip  IP address of the receiving machine" << std::endl;
+        std::cout << "  target_ip  IP or broadcast address (default: 192.168.123.255)" << std::endl;
         std::cout << "  port       UDP port (default: 5001)" << std::endl;
         std::cout << "  fps        Target framerate (default: 15)" << std::endl;
         std::cout << std::endl;
-        std::cout << "Example:" << std::endl;
-        std::cout << "  " << argv[0] << " 192.168.123.222" << std::endl;
-        std::cout << "  " << argv[0] << " 192.168.123.222 5001 10" << std::endl;
+        std::cout << "Examples:" << std::endl;
+        std::cout << "  # Broadcast (default - any client can receive):" << std::endl;
+        std::cout << "  " << argv[0] << std::endl;
+        std::cout << std::endl;
+        std::cout << "  # Unicast to specific client:" << std::endl;
+        std::cout << "  " << argv[0] << " 192.168.123.222 5001 15" << std::endl;
         return 1;
     }
-
-    std::string client_ip = argv[1];
     int port = (argc > 2) ? std::stoi(argv[2]) : DepthStreamServer::DEFAULT_PORT;
     int fps = (argc > 3) ? std::stoi(argv[3]) : 15;
 

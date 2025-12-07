@@ -78,14 +78,32 @@ void DepthStreamClient::receiveLoop() {
     auto start_time = std::chrono::steady_clock::now();
     int frames_since_fps = 0;
     auto last_fps_time = start_time;
+    int recv_count = 0;
+    int timeout_count = 0;
+
+    std::cout << "[DEPTH_CLIENT] Receive loop started, waiting for UDP packets..." << std::endl;
 
     while (running_.load()) {
         ssize_t len = recv(socket_fd_, recv_buf.data(), recv_buf.size(), 0);
-        if (len < 16) continue;  // Too short or timeout
+        if (len < 0) {
+            timeout_count++;
+            if (timeout_count % 5 == 1) {  // Every 5 timeouts (~5 sec)
+                std::cout << "[DEPTH_CLIENT] Waiting for packets... (timeouts: " << timeout_count << ")" << std::endl;
+            }
+            continue;
+        }
+        if (len < 16) {
+            std::cout << "[DEPTH_CLIENT] Short packet: " << len << " bytes" << std::endl;
+            continue;  // Too short
+        }
+
+        recv_count++;
 
         // Parse header
         uint32_t magic = *reinterpret_cast<uint32_t*>(recv_buf.data());
-        if (magic != MAGIC) continue;
+        if (magic != MAGIC) {
+            continue;
+        }
 
         uint32_t frame_num = *reinterpret_cast<uint32_t*>(recv_buf.data() + 4);
         uint16_t chunk_idx = *reinterpret_cast<uint16_t*>(recv_buf.data() + 8);
@@ -154,12 +172,26 @@ void DepthStreamClient::receiveLoop() {
                             else if (key == "cy") f.cy = kv.val.as<float>();
                             else if (key == "s") f.depth_scale = kv.val.as<float>();
                             else if (key == "c") {
-                                auto bin = kv.val.as<msgpack::type::raw_ref>();
-                                color_data.assign(bin.ptr, bin.ptr + bin.size);
+                                // Handle BIN type for color data
+                                if (kv.val.type == msgpack::type::BIN) {
+                                    color_data.assign(
+                                        kv.val.via.bin.ptr,
+                                        kv.val.via.bin.ptr + kv.val.via.bin.size);
+                                } else if (kv.val.type == msgpack::type::STR) {
+                                    auto str = kv.val.as<msgpack::type::raw_ref>();
+                                    color_data.assign(str.ptr, str.ptr + str.size);
+                                }
                             }
                             else if (key == "d") {
-                                auto bin = kv.val.as<msgpack::type::raw_ref>();
-                                depth_data.assign(bin.ptr, bin.ptr + bin.size);
+                                // Handle BIN type for depth data
+                                if (kv.val.type == msgpack::type::BIN) {
+                                    depth_data.assign(
+                                        kv.val.via.bin.ptr,
+                                        kv.val.via.bin.ptr + kv.val.via.bin.size);
+                                } else if (kv.val.type == msgpack::type::STR) {
+                                    auto str = kv.val.as<msgpack::type::raw_ref>();
+                                    depth_data.assign(str.ptr, str.ptr + str.size);
+                                }
                             }
                         }
 
