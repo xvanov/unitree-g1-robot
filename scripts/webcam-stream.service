@@ -1,0 +1,16 @@
+[Unit]
+Description=Webcam Stream Server for G1 Robot
+After=network.target
+
+[Service]
+Type=simple
+User=unitree
+Group=video
+ExecStart=/home/unitree/g1_inspector/build/webcam_stream_server /dev/video0 192.168.123.255 5002 30
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

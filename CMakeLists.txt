@@ -442,6 +442,38 @@ endif()
 add_executable(depth_capture_tool tools/depth_capture.cpp)
 target_link_libraries(depth_capture_tool depth_stream_client ${OpenCV_LIBS})
 
+# ============================================
+# Webcam Stream (for regular USB cameras - no RealSense needed)
+# ============================================
+
+# Webcam streaming library (works on any machine with OpenCV)
+add_library(webcam_stream
+    src/webcam/WebcamStreamServer.cpp
+)
+target_include_directories(webcam_stream PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(webcam_stream
+    ${OpenCV_LIBS}
+    pthread
+)
+
+# Webcam stream server tool (for robot)
+add_executable(webcam_stream_server tools/webcam_stream_server.cpp)
+target_link_libraries(webcam_stream_server webcam_stream ${OpenCV_LIBS})
+
+# Webcam capture tool (for dev machine - receives and displays stream)
+add_executable(webcam_capture tools/webcam_capture.cpp)
+target_link_libraries(webcam_capture webcam_stream ${OpenCV_LIBS})
+
+# Unified stream viewer (shows depth RGB, depth, and webcam in one window)
+add_executable(stream_viewer tools/stream_viewer.cpp)
+target_link_libraries(stream_viewer
+    depth_stream_client
+    webcam_stream
+    ${OpenCV_LIBS}
+)
+
 # Main executable
 add_executable(g1_inspector
     src/main.cpp
