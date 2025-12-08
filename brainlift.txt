@@ -1,0 +1,294 @@
+Brainlift: Unitree G1 Construction Inspector Robot
+Purpose
+
+Use the Unitree G1 as a mobile, embodied agent capable of:
+
+Walking a construction site (interior framing, MEP rough-in, open slab, exterior shell).
+
+Capturing structured inspection data: photos, LiDAR-like depth, thermal (optional), audio, annotations.
+
+Detecting code compliance issues (clearances, fire blocking, nail patterns, plumbing vents, grease duct slope, etc.).
+
+Performing routine QA/QC: comparing as-built vs BIM model.
+
+Enforcing safety (missing guard rails, tripping hazards, OSHA issues).
+
+Acting as a digital inspector assistant: querying site conditions, generating reports, flagging issues, and syncing to Procore.
+
+This becomes a deep agent that continuously:
+
+Perceives → 2. Thinks → 3. Plans → 4. Acts → 5. Reflects → 6. Improves
+
+Experts
+Expert 1
+
+Who: Jim Fan (NVIDIA Robotics)
+Focus: Scaling robot perception + simulation for industrial environments (dust, noise, poor lighting)
+Why Follow: His Isaac Lab frameworks are perfect for training the G1 for construction navigation + inspection tasks
+Where: https://twitter.com/DrJimFan
+
+Expert 2
+
+Who: Pieter Abbeel
+Focus: RL + manipulation + safety-critical learning in unpredictable environments
+Why Follow: His lab's work on real-world RL policies applies directly to construction-site walking + terrain adaptation
+Where: YouTube / Berkeley AI Research
+
+Expert 3
+
+Who: Greg Brockman (OpenAI)
+Focus: Vision-language-action systems (VLA) & embodied intelligence
+Why Follow: These systems underpin the future of robots that "see + reason + act" in cluttered sites
+Where: @gdb on Twitter
+
+Expert 4
+
+Who: Henrik Christensen (UC San Diego Construction Robotics)
+Focus: Robotics in construction automation
+Why Follow: Direct experience in applying robotics to construction sites and understanding constraints
+Where: UCSD Contextual Robotics Institute
+
+Expert 5
+
+Who: Boston Dynamics research team
+Focus: Spot as a construction inspection robot
+Why Follow: Everything Spot does today → the G1 will do tomorrow with arms & humanoid embodiment
+Where: BD YouTube + research papers
+
+Spiky POVs
+Truths
+1. Construction inspection is 80% “seeing” and 20% “touching.”
+
+A humanoid with locomotion + cameras is already 80% of what you need.
+Arms become useful for pushing drywall, opening doors, or pointing sensors.
+
+2. The value is not the robot—it’s the consistent, structured data it collects.
+
+Contractors struggle because humans collect inconsistent photos.
+Robots can do the same walk every day, aligned with BIM coordinates.
+
+3. Safety compliance is the killer app.
+
+Missing railings, trench protection, ladder safety, PPE compliance → robots do this better than tired humans.
+
+Myths
+1. “Humanoids can’t operate on messy construction sites.”
+
+False — with proper “terrain moding” (rubber mats, dirt, debris recognition), the G1 can safely travel most indoor sites.
+
+2. “You need a super dexterous robot hand for inspection.”
+
+Wrong — almost every inspection task is vision + measurement, not manipulation.
+
+3. “Robots will replace human inspectors.”
+
+No — robots generate structured evidence; humans still interpret final compliance and sign off.
+
+Knowledge Tree / Categories
+Category 1: Locomotion on Construction Terrain
+
+Summary:
+Construction sites introduce:
+
+uneven surfaces
+
+loose cables
+
+debris
+
+ladders, stairs
+
+narrow hallways
+
+incomplete floors
+
+The G1 must use:
+
+depth + stereo mapping
+
+terrain classification
+
+safe path planning
+
+“stop if uncertain” heuristics
+
+Sources
+
+Source 1: Isaac Gym / Lab Terrain Navigation Models
+
+Summary: RL locomotion on rubble, random slopes, occlusions
+Link: NVIDIA presentations
+Insights:
+
+G1 can be trained via sim → real to walk through framed rooms
+
+Key is cautious control + lidar-like stereo depth
+
+Category 2: Vision + LLM Inspection Intelligence
+
+Summary:
+The G1 becomes an inspector by pairing its camera suite with LLM vision models:
+
+Capabilities:
+
+Check stud spacing
+
+Identify missing fire blocking
+
+Check GFCI placement
+
+Detect unprotected edges
+
+Identify incorrect vent piping
+
+Compare rough-in locations to BIM/plan
+
+LLM + vision models (GPT-V, VLA) can do:
+
+“Show me all code violations in this room”
+
+“Is this 6” exhaust duct sloped correctly?”
+
+“Are the anchor bolts at correct spacing?”
+
+Sources
+
+Source 2: OpenAI VLA papers
+
+Summary: Vision-language-action foundation for “robot inspector reasoning”
+Link: OpenAI robotics posts
+Insights:
+
+Perfect for reasoning over photos + environment context
+
+Category 3: Data Capture & Digital Twin Integration
+
+Summary:
+The G1 walks the same route daily → captures data → syncs to:
+
+Procore
+
+Autodesk Construction Cloud
+
+BIM 360
+
+Your custom GC platform
+
+It builds a temporal digital twin:
+
+Today’s as-built vs yesterday vs last week
+→ change detection
+→ progress tracking
+→ risk scoring
+
+Sources
+
+Source 3: Boston Dynamics Spot + Trimble Integration
+
+Summary: Case studies for automated site capture
+Link: BD case studies
+Insights:
+
+People pay $$$ for consistent jobsite scans
+
+Humanoids can do this AND interact with the environment
+
+Category 4: Deep Agent Architecture for Inspection
+
+Summary:
+The G1 construction inspector agent loop:
+
+Perceive: RGB + IR + IMU + depth mapping
+
+Localize: SLAM / BIM coordinates
+
+Plan: LLM generates inspection checklist
+
+Navigate: walk route → avoid hazards
+
+Inspect: vision-based recognition
+
+Log: create issues + photos + measurements
+
+Reflect: LLM evaluates mistakes, improves route
+
+Report: daily PDF + structured JSON → Procore
+
+Sources
+
+Source 4: DeepMind/Anthropic “deep agent” pathways”
+
+Summary: Reflection + multistage planning loops
+Link: Anthropic agentic misalignment paper you linked
+Insights:
+
+Self-correcting inspection loops are a perfect application
+
+Reflection helps avoid false positives
+
+Category 5: Construction-Specific Use Cases
+
+Summary:
+Tasks the G1 can perform today:
+
+Interior Framing
+
+Check stud spacing (16/24 OC)
+
+Identify crooked studs
+
+Check blocking placement
+
+Confirm header types
+
+Electrical
+
+Verify GFCI locations
+
+Check conduit routing
+
+Verify breaker labeling
+
+Count outlets per code
+
+Plumbing
+
+Verify vent stack size/position
+
+Check slope of drain lines
+
+Confirm cleanout accessibility
+
+Check PEX manifold labeling
+
+HVAC
+
+Verify register placement
+
+Check grease duct slope (restaurant jobs)
+
+Identify missing insulation
+
+Confirm duct hangers
+
+Safety
+
+Detect missing railing
+
+Ladder misuse
+
+Open pits
+
+Material blocking exits
+
+PPE compliance
+
+Sources
+
+Source 5: NAHB, ICC, OSHA standards
+
+Summary: All inspection tasks map directly to standard checklists
+Link: Public building code references
+Insights:
+
+Construction inspection is 100% codified → ideal for LLM reasoning
