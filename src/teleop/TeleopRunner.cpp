@@ -4,6 +4,7 @@
 #include "recording/SensorRecorder.h"
 #include "sensors/SensorManager.h"
 #include "locomotion/LocoController.h"
+#include "util/NetworkUtil.h"
 
 #include <opencv2/opencv.hpp>  // For cv::waitKey in gamepad SLAM viz
 #include <iostream>
@@ -76,6 +77,13 @@ int TeleopRunner::run() {
             break;
     }
 
+    // Save SLAM map if we were visualizing
+    if (grid_mapper_ && recorder_) {
+        std::string map_path = recorder_->getSessionDir() + "/slam_map.png";
+        grid_mapper_->saveMap(map_path);
+        std::cout << "[TELEOP] SLAM map saved: " << map_path << std::endl;
+    }
+
     // Stop recording
     if (recorder_ && recorder_->isRecording()) {
         std::cout << "[TELEOP] Flushing recording..." << std::endl;
@@ -103,6 +111,20 @@ void TeleopRunner::stop() {
 
 bool TeleopRunner::initHardware() {
 #ifdef HAS_UNITREE_SDK2
+    // If robot IP is specified, find the correct interface and generate CycloneDDS config
+    if (!robot_ip_.empty()) {
+        // Find interface on same subnet as robot IP
+        std::string iface = NetworkUtil::findInterfaceForIP(robot_ip_);
+        if (iface.empty()) {
+            std::cerr << "[TELEOP] No interface found on same subnet as robot " << robot_ip_ << std::endl;
+            std::cerr << "[TELEOP] Make sure you have an IP on the 192.168.123.x subnet" << std::endl;
+            return false;
+        }
+        // Override network_interface_ so SDK uses the correct one
+        network_interface_ = iface;
+        NetworkUtil::generateCycloneDDSConfig(robot_ip_, iface);
+    }
+
     // Initialize sensor manager (optional - may fail if low-level not accessible)
     sensor_manager_ = std::make_shared<SensorManager>();
     if (!sensor_manager_->init(network_interface_, no_lidar_)) {
@@ -212,6 +234,10 @@ int TeleopRunner::runGamepadMode() {
             // Send velocity command at fixed rate
             auto now = std::chrono::steady_clock::now();
             if (now - last_cmd_time >= cmd_interval) {
+                // Update odometry in SensorManager for SLAM
+                if (sensor_manager_) {
+                    sensor_manager_->updateVelocity(cmd.vx, cmd.vy, cmd.omega);
+                }
                 loco_controller_->setVelocity(cmd.vx, cmd.vy, cmd.omega);
                 last_cmd_time = now;
 
@@ -346,9 +372,8 @@ int TeleopRunner::runKeyboardMode() {
 void TeleopRunner::wireRecorderCallbacks() {
     if (!recorder_ || !sensor_manager_) return;
 
-    // Note: LiDAR callback is wired in runGamepadMode() consolidated callback
-    // to support both recording and SLAM visualization without overwrite issues.
-    // Only wire IMU callback here.
+    // Note: LiDAR 2D scan callback is wired in keyboard/gamepad mode for SLAM.
+    // Wire IMU, motor state, and 3D point cloud callbacks here.
 
     // Wire IMU callback
     sensor_manager_->setImuCallback([this](const ImuData& imu) {
@@ -357,7 +382,21 @@ void TeleopRunner::wireRecorderCallbacks() {
         }
     });
 
-    std::cout << "[TELEOP] IMU callback wired to recorder" << std::endl;
+    // Wire motor state callback for joint odometry
+    sensor_manager_->setMotorStateCallback([this](const MotorState& motors) {
+        if (recorder_ && recorder_->isRecording()) {
+            recorder_->recordMotorState(motors);
+        }
+    });
+
+    // Wire 3D point cloud callback for full reconstruction data
+    sensor_manager_->setPointCloud3DCallback([this](const PointCloud3D& cloud) {
+        if (recorder_ && recorder_->isRecording()) {
+            recorder_->recordPointCloud3D(cloud);
+        }
+    });
+
+    std::cout << "[TELEOP] IMU, motor state, and 3D point cloud callbacks wired to recorder" << std::endl;
 }
 
 std::string TeleopRunner::getLocalIP() {

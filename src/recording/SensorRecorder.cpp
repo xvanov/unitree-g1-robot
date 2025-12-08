@@ -99,8 +99,10 @@ bool SensorRecorder::startRecording(const std::string& session_id) {
     bytes_compressed_.store(0);
     messages_recorded_.store(0);
     lidar_count_.store(0);
+    pointcloud_count_.store(0);
     imu_count_.store(0);
     pose_count_.store(0);
+    motor_state_count_.store(0);
     image_count_.store(0);
     teleop_count_.store(0);
     video_frame_count_.store(0);
@@ -201,8 +203,10 @@ void SensorRecorder::stopRecording() {
     metadata_.end_time_us = recording::getCurrentTimestampUs();
     metadata_.duration_seconds = duration;
     metadata_.lidar_count = lidar_count_.load();
+    metadata_.pointcloud_count = pointcloud_count_.load();
     metadata_.imu_count = imu_count_.load();
     metadata_.pose_count = pose_count_.load();
+    metadata_.motor_state_count = motor_state_count_.load();
     metadata_.image_count = image_count_.load();
     metadata_.teleop_count = teleop_count_.load();
     metadata_.video_frame_count = video_frame_count_.load();
@@ -249,6 +253,33 @@ void SensorRecorder::recordLidarScan(const LidarScan& scan) {
                  reinterpret_cast<const uint8_t*>(buffer.data()), buffer.size());
 
     lidar_count_++;
+}
+
+void SensorRecorder::recordPointCloud3D(const PointCloud3D& cloud) {
+    if (!recording_.load()) return;
+    if (cloud.size() == 0) return;
+
+    // Pack 3D point cloud with msgpack
+    // Format: {count, x[], y[], z[], intensity[]}
+    msgpack::sbuffer buffer;
+    msgpack::packer<msgpack::sbuffer> pk(&buffer);
+
+    pk.pack_map(5);
+    pk.pack("count");
+    pk.pack(static_cast<uint32_t>(cloud.size()));
+    pk.pack("x");
+    pk.pack(cloud.x);
+    pk.pack("y");
+    pk.pack(cloud.y);
+    pk.pack("z");
+    pk.pack(cloud.z);
+    pk.pack("intensity");
+    pk.pack(cloud.intensity);
+
+    queueMessage(recording::MessageType::POINT_CLOUD_3D,
+                 reinterpret_cast<const uint8_t*>(buffer.data()), buffer.size());
+
+    pointcloud_count_++;
 }
 
 void SensorRecorder::recordImu(const ImuData& imu) {
@@ -313,6 +344,34 @@ void SensorRecorder::recordPose(const Pose2D& pose) {
                  reinterpret_cast<const uint8_t*>(buffer.data()), buffer.size());
 
     pose_count_++;
+}
+
+void SensorRecorder::recordMotorState(const MotorState& motors) {
+    if (!recording_.load()) return;
+
+    msgpack::sbuffer buffer;
+    msgpack::packer<msgpack::sbuffer> pk(&buffer);
+
+    pk.pack_map(2);
+
+    // Pack joint positions
+    pk.pack("q");
+    pk.pack_array(G1_NUM_MOTORS);
+    for (int i = 0; i < G1_NUM_MOTORS; ++i) {
+        pk.pack(motors.q[i]);
+    }
+
+    // Pack joint velocities
+    pk.pack("dq");
+    pk.pack_array(G1_NUM_MOTORS);
+    for (int i = 0; i < G1_NUM_MOTORS; ++i) {
+        pk.pack(motors.dq[i]);
+    }
+
+    queueMessage(recording::MessageType::MOTOR_STATE,
+                 reinterpret_cast<const uint8_t*>(buffer.data()), buffer.size());
+
+    motor_state_count_++;
 }
 
 void SensorRecorder::recordImage(const cv::Mat& image, int sequence_num) {
@@ -652,8 +711,10 @@ void SensorRecorder::writeMetadata() {
 
     j["message_counts"] = {
         {"lidar", metadata_.lidar_count},
+        {"pointcloud_3d", metadata_.pointcloud_count},
         {"imu", metadata_.imu_count},
         {"pose", metadata_.pose_count},
+        {"motor_state", metadata_.motor_state_count},
         {"image", metadata_.image_count},
         {"teleop", metadata_.teleop_count},
         {"video_frame", metadata_.video_frame_count},

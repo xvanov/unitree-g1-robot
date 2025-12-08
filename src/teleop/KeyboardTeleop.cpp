@@ -5,6 +5,7 @@
 #include "sensors/SensorManager.h"
 #include "locomotion/LocoController.h"
 #include "recording/SensorRecorder.h"
+#include "recording/RecordingTypes.h"
 #include "slam/SlamVisualizer.h"
 #include "slam/GridMapper.h"
 #include <iostream>
@@ -59,6 +60,7 @@ void KeyboardTeleop::run() {
 
     // Create window
     cv::namedWindow(WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+    std::cout << "[TELEOP] OpenCV window created: " << WINDOW_NAME << std::endl;
 
     // Initialize SLAM visualizer if enabled (Story 3-1)
     if (visualize_slam_ && grid_mapper_) {
@@ -66,13 +68,18 @@ void KeyboardTeleop::run() {
         std::cout << "[TELEOP] SLAM visualizer initialized" << std::endl;
 
         // Wire LiDAR callback to:
-        // 1. Update GridMapper with new scan
-        // 2. Cache scan for visualizer rendering
+        // 1. Record LiDAR scan if recording is active
+        // 2. Update GridMapper with new scan
+        // 3. Cache scan for visualizer rendering
         // Note: This is the ONLY place we set the LiDAR callback to avoid overwrites
         if (sensors_) {
             sensors_->setLidarCallback([this](const LidarScan& scan) {
+                // Record LiDAR scan if recording is active
+                if (recorder_ && recorder_->isRecording()) {
+                    recorder_->recordLidarScan(scan);
+                }
                 // Update GridMapper with new scan data
-                if (grid_mapper_) {
+                if (grid_mapper_ && sensors_) {
                     Pose2D pose = sensors_->getEstimatedPose();
                     grid_mapper_->update(pose, scan);
                 }
@@ -81,6 +88,13 @@ void KeyboardTeleop::run() {
                 has_new_scan_ = true;
             });
         }
+    } else if (recorder_ && sensors_) {
+        // Even without SLAM visualization, wire LiDAR callback for recording
+        sensors_->setLidarCallback([this](const LidarScan& scan) {
+            if (recorder_ && recorder_->isRecording()) {
+                recorder_->recordLidarScan(scan);
+            }
+        });
     }
 
     std::cout << "[TELEOP] Keyboard teleop started" << std::endl;
@@ -156,6 +170,17 @@ void KeyboardTeleop::run() {
             display_frame = frames_to_concat[0];
         } else {
             cv::hconcat(frames_to_concat, display_frame);
+        }
+
+        // Debug: print frame info once at startup
+        static bool first_frame = true;
+        if (first_frame) {
+            std::cout << "[TELEOP] Display frame: " << display_frame.cols << "x" << display_frame.rows
+                      << " (sources: main=" << frame.cols << "x" << frame.rows;
+            if (depth_available_) std::cout << ", depth";
+            if (webcam_available_) std::cout << ", webcam";
+            std::cout << ")" << std::endl;
+            first_frame = false;
         }
 
         // Show frame
@@ -596,6 +621,12 @@ bool KeyboardTeleop::updateCamera() {
         if (webcam_frame.valid && !webcam_frame.image.empty()) {
             last_webcam_ = webcam_frame.image.clone();
             webcam_available_ = true;
+
+            // Record webcam frame if recording is active
+            // Uses recordImage with sequence number from webcam frame
+            if (recorder_ && recorder_->isRecording()) {
+                recorder_->recordImage(last_webcam_, webcam_frame.frame_number);
+            }
         }
     }
 
@@ -689,17 +720,39 @@ void KeyboardTeleop::drawOverlay(cv::Mat& frame) {
 }
 
 void KeyboardTeleop::sendVelocity() {
-    if (!loco_) {
-        return;
-    }
-
     // Apply velocity scale
     float vx = cmd_vx_ * velocity_scale_;
     float vy = cmd_vy_ * velocity_scale_;
     float omega = cmd_omega_ * velocity_scale_;
 
+    // Update odometry in SensorManager for SLAM
+    if (sensors_) {
+        sensors_->updateVelocity(vx, vy, omega);
+    }
+
     // Send to robot
-    loco_->setVelocity(vx, vy, omega);
+    if (loco_) {
+        loco_->setVelocity(vx, vy, omega);
+    }
+
+    // Record teleop command and pose if recording is active
+    if (recorder_ && recorder_->isRecording()) {
+        // Record teleop command
+        recording::TeleopCommandRecord cmd;
+        cmd.vx = vx;
+        cmd.vy = vy;
+        cmd.omega = omega;
+        cmd.stand_cmd = false;  // Would need to track button presses
+        cmd.sit_cmd = false;
+        cmd.estop_cmd = false;
+        recorder_->recordTeleopCommand(cmd);
+
+        // Record pose estimate from SensorManager
+        if (sensors_) {
+            Pose2D pose = sensors_->getEstimatedPose();
+            recorder_->recordPose(pose);
+        }
+    }
 }
 
 cv::Mat KeyboardTeleop::getLastFrame() const {

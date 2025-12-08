@@ -36,9 +36,14 @@ private:
     void updateCell(int x, int y, float delta_log_odds);
     bool isInBounds(int x, int y) const;
 
-    // World to grid conversion (origin at 0,0)
-    int worldToGridX(float x) const { return static_cast<int>(x / resolution_); }
-    int worldToGridY(float y) const { return static_cast<int>(y / resolution_); }
+    // World to grid conversion (origin offset to center the grid)
+    // Grid cell (width/2, height/2) corresponds to world (0,0)
+    int worldToGridX(float x) const { return static_cast<int>(x / resolution_) + width_ / 2; }
+    int worldToGridY(float y) const { return static_cast<int>(y / resolution_) + height_ / 2; }
+
+    // Grid to world conversion
+    float gridToWorldX(int gx) const { return (gx - width_ / 2) * resolution_; }
+    float gridToWorldY(int gy) const { return (gy - height_ / 2) * resolution_; }
 
     float resolution_;            // meters per cell (0.05f default)
     int width_, height_;          // grid dimensions in cells

@@ -11,14 +11,15 @@ namespace recording {
 
 // Message types for the binary recording format
 enum class MessageType : uint8_t {
-    LIDAR_SCAN = 1,
+    LIDAR_SCAN = 1,      // 2D scan (ranges array) for SLAM
     IMU_DATA = 2,
     POSE = 3,
     IMAGE = 4,
     MOTOR_STATE = 5,
-    TELEOP_CMD = 6,    // Teleop commands for replay
-    VIDEO_FRAME = 7,   // Continuous video frames for playback
-    DEPTH_FRAME = 8,   // Depth camera frames (color + depth)
+    TELEOP_CMD = 6,      // Teleop commands for replay
+    VIDEO_FRAME = 7,     // Continuous video frames for playback
+    DEPTH_FRAME = 8,     // Depth camera frames (color + depth)
+    POINT_CLOUD_3D = 9,  // Full 3D point cloud (x,y,z,intensity)
     METADATA = 255
 };
 
@@ -39,9 +40,11 @@ struct RecordingMetadata {
     std::string plan_path;  // Empty if no plan loaded
 
     // Message counts
-    uint32_t lidar_count = 0;
+    uint32_t lidar_count = 0;        // 2D scans
+    uint32_t pointcloud_count = 0;   // 3D point clouds
     uint32_t imu_count = 0;
     uint32_t pose_count = 0;
+    uint32_t motor_state_count = 0;
     uint32_t image_count = 0;
     uint32_t teleop_count = 0;
     uint32_t video_frame_count = 0;

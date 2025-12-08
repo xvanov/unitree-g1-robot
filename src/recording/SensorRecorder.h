@@ -25,9 +25,11 @@ public:
     bool isRecording() const { return recording_.load(); }
 
     // Data recording methods - call from sensor callbacks
-    void recordLidarScan(const LidarScan& scan);
+    void recordLidarScan(const LidarScan& scan);        // 2D scan for SLAM
+    void recordPointCloud3D(const PointCloud3D& cloud); // Full 3D for reconstruction
     void recordImu(const ImuData& imu);
     void recordPose(const Pose2D& pose);
+    void recordMotorState(const MotorState& motors);
     void recordImage(const cv::Mat& image, int sequence_num);
     void recordTeleopCommand(const recording::TeleopCommandRecord& cmd);
 
@@ -156,8 +158,10 @@ private:
     std::atomic<uint64_t> bytes_compressed_{0};
     std::atomic<uint32_t> messages_recorded_{0};
     std::atomic<uint32_t> lidar_count_{0};
+    std::atomic<uint32_t> pointcloud_count_{0};
     std::atomic<uint32_t> imu_count_{0};
     std::atomic<uint32_t> pose_count_{0};
+    std::atomic<uint32_t> motor_state_count_{0};
     std::atomic<uint32_t> image_count_{0};
     std::atomic<uint32_t> teleop_count_{0};
     std::atomic<uint32_t> video_frame_count_{0};

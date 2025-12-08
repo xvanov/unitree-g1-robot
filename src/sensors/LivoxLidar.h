@@ -41,9 +41,14 @@ public:
     bool isConnected() const { return connected_.load(); }
 
     /**
-     * Set callback for processed LidarScan data
+     * Set callback for processed LidarScan data (2D for SLAM)
      */
     void setLidarCallback(std::function<void(const LidarScan&)> callback);
+
+    /**
+     * Set callback for full 3D point cloud data (for recording/reconstruction)
+     */
+    void setPointCloud3DCallback(std::function<void(const PointCloud3D&)> callback);
 
     /**
      * Set callback for raw IMU data from the LiDAR (Mid-360 has built-in IMU)
@@ -78,6 +83,7 @@ private:
 
     // Callbacks
     std::function<void(const LidarScan&)> lidar_callback_;
+    std::function<void(const PointCloud3D&)> pointcloud3d_callback_;
     std::function<void(const ImuData&)> imu_callback_;
 
     // Point accumulation for building scans
@@ -85,6 +91,9 @@ private:
     std::vector<float> accumulated_ranges_;
     std::vector<int> range_counts_;
     uint8_t last_frame_cnt_{0};
+
+    // 3D point accumulation for recording
+    PointCloud3D accumulated_cloud_;
 
     // Statistics
     std::atomic<uint64_t> packet_count_{0};

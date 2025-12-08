@@ -90,6 +90,11 @@ void SlamVisualizer::drawOccupancyGrid(cv::Mat& canvas) {
     int map_height = mapper_->getHeight();
     float resolution = mapper_->getResolution();
 
+    // Grid is centered: cell (width/2, height/2) = world (0,0)
+    // So grid cell (0,0) = world (-width/2 * resolution, -height/2 * resolution)
+    float grid_origin_x = -map_width / 2 * resolution;
+    float grid_origin_y = -map_height / 2 * resolution;
+
     // Calculate visible cell range from current zoom/pan (viewport clipping)
     float left_world = screenToWorld(0, window_height_ / 2).x;
     float right_world = screenToWorld(window_width_, window_height_ / 2).x;
@@ -97,10 +102,10 @@ void SlamVisualizer::drawOccupancyGrid(cv::Mat& canvas) {
     float bottom_world = screenToWorld(window_width_ / 2, window_height_).y;
 
     // Convert to grid coordinates with margin
-    int min_gx = std::max(0, static_cast<int>((left_world - map_origin_x_) / resolution) - 1);
-    int max_gx = std::min(map_width - 1, static_cast<int>((right_world - map_origin_x_) / resolution) + 1);
-    int min_gy = std::max(0, static_cast<int>((bottom_world - map_origin_y_) / resolution) - 1);
-    int max_gy = std::min(map_height - 1, static_cast<int>((top_world - map_origin_y_) / resolution) + 1);
+    int min_gx = std::max(0, static_cast<int>((left_world - grid_origin_x) / resolution) - 1);
+    int max_gx = std::min(map_width - 1, static_cast<int>((right_world - grid_origin_x) / resolution) + 1);
+    int min_gy = std::max(0, static_cast<int>((bottom_world - grid_origin_y) / resolution) - 1);
+    int max_gy = std::min(map_height - 1, static_cast<int>((top_world - grid_origin_y) / resolution) + 1);
 
     // Draw only visible cells
     for (int gy = min_gy; gy <= max_gy; ++gy) {
@@ -117,8 +122,9 @@ void SlamVisualizer::drawOccupancyGrid(cv::Mat& canvas) {
             uint8_t pixel = logOddsToPng(l);
 
             // Calculate world position of cell center
-            float world_x = gx * resolution + map_origin_x_ + resolution / 2;
-            float world_y = gy * resolution + map_origin_y_ + resolution / 2;
+            // Grid cell (gx, gy) -> world = (gx - width/2) * res, (gy - height/2) * res
+            float world_x = (gx - map_width / 2) * resolution + resolution / 2;
+            float world_y = (gy - map_height / 2) * resolution + resolution / 2;
 
             // Convert to screen coordinates
             cv::Point screen_pos = worldToScreen(world_x, world_y);

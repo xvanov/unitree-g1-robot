@@ -33,3 +33,11 @@ struct ImuData {
     float accel_y = 0.0f;
     float accel_z = 0.0f;
 };
+
+// Motor/joint state for odometry (G1 has 35 motors)
+static constexpr int G1_NUM_MOTORS = 35;
+
+struct MotorState {
+    float q[G1_NUM_MOTORS] = {0};    // Joint positions (radians)
+    float dq[G1_NUM_MOTORS] = {0};   // Joint velocities (rad/s)
+};

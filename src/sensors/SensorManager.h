@@ -23,8 +23,10 @@ public:
     bool init(const std::string& network_interface = "", bool skip_lidar = false);
 
     // Register callbacks for asynchronous data
-    void setLidarCallback(std::function<void(const LidarScan&)> callback);
+    void setLidarCallback(std::function<void(const LidarScan&)> callback);         // 2D scan for SLAM
+    void setPointCloud3DCallback(std::function<void(const PointCloud3D&)> callback); // Full 3D for recording
     void setImuCallback(std::function<void(const ImuData&)> callback);
+    void setMotorStateCallback(std::function<void(const MotorState&)> callback);
 
     // Blocking getters for latest data (const-qualified, uses mutable mutex)
     LidarScan getLatestLidar() const;
@@ -33,9 +35,13 @@ public:
     // Battery state
     float getBatteryPercent() const;
 
-    // Simple pose estimate from IMU yaw (dead reckoning)
-    // Full SLAM provides better estimates - this is basic orientation-only
+    // Simple pose estimate from IMU yaw + velocity integration (dead reckoning)
+    // Full SLAM provides better estimates - this is basic odometry
     Pose2D getEstimatedPose() const;
+
+    // Update commanded velocity for odometry integration (called from teleop)
+    // This integrates velocity over time to estimate position
+    void updateVelocity(float vx, float vy, float omega);
 
     // Connection status
     bool isConnected() const;
@@ -66,11 +72,19 @@ private:
 
     // Callbacks
     std::function<void(const LidarScan&)> lidar_callback_;
+    std::function<void(const PointCloud3D&)> pointcloud3d_callback_;
     std::function<void(const ImuData&)> imu_callback_;
+    std::function<void(const MotorState&)> motor_state_callback_;
 
     // Connection tracking
     std::chrono::steady_clock::time_point last_data_time_;
     std::string network_interface_;
+
+    // Odometry integration for position estimation
+    mutable std::mutex odom_mutex_;
+    Pose2D estimated_pose_{0.0f, 0.0f, 0.0f};  // Integrated position
+    float cmd_vx_{0.0f}, cmd_vy_{0.0f}, cmd_omega_{0.0f};  // Commanded velocities
+    std::chrono::steady_clock::time_point last_odom_time_;
 
     // SDK-specific members (only compiled when SDK available)
 #ifdef HAS_UNITREE_SDK2
@@ -84,6 +98,8 @@ private:
 
     // Internal callback handlers
     void onLidarData(const LidarScan& scan);
+    void onPointCloud3D(const PointCloud3D& cloud);
     void onImuData(const ImuData& data);
+    void onMotorState(const MotorState& data);
     void onWirelessRemote(const uint8_t* data);  // Story 2-1
 };

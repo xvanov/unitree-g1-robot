@@ -27,7 +27,8 @@ namespace {
     // Global instance pointer for C callbacks
     LivoxLidar* g_instance = nullptr;
 
-    // Get the local IP address on the 192.168.123.x subnet
+    // Get the local IP address on the LiDAR subnet (192.168.123.x - same as LiDAR at 192.168.123.120)
+    // The LiDAR is always on the ethernet subnet, never WiFi
     std::string getLocalIPOnSubnet() {
         struct ifaddrs* ifaddr = nullptr;
         if (getifaddrs(&ifaddr) == -1) {
@@ -45,7 +46,7 @@ namespace {
             inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
 
             std::string ip_str(ip);
-            // Check if on 192.168.123.x subnet
+            // LiDAR is always on 192.168.123.x subnet (ethernet, not WiFi)
             if (ip_str.find("192.168.123.") == 0) {
                 result = ip_str;
                 break;
@@ -254,6 +255,10 @@ void LivoxLidar::setLidarCallback(std::function<void(const LidarScan&)> callback
     lidar_callback_ = callback;
 }
 
+void LivoxLidar::setPointCloud3DCallback(std::function<void(const PointCloud3D&)> callback) {
+    pointcloud3d_callback_ = callback;
+}
+
 void LivoxLidar::setImuCallback(std::function<void(const ImuData&)> callback) {
     imu_callback_ = callback;
 }
@@ -277,16 +282,20 @@ void LivoxLidar::processPointCloud(uint32_t handle, const uint8_t dev_type, void
     point_count_ += packet->dot_num;
 
     // Mid-360 doesn't reliably use frame_cnt, so use packet count for frame boundaries
-    // Emit a scan every ~100 packets (approximately 10Hz at 200k pts/sec, 96 pts/packet)
-    constexpr int PACKETS_PER_FRAME = 100;
+    // The Mid-360 has a rotating prism that takes ~100ms to complete a full scan pattern
+    // At ~200k pts/sec and ~96 pts/packet, we get ~2000 packets/sec
+    // For 10Hz output with full 360° coverage, we need ~200 packets per frame
+    constexpr int PACKETS_PER_FRAME = 200;
     bool new_frame = (packet_count_ % PACKETS_PER_FRAME == 0);
 
-    // If new frame, emit the accumulated scan
+    // If new frame, emit the accumulated scan and 3D cloud
     if (new_frame) {
         LidarScan scan;
         scan.angle_min = ANGLE_MIN;
         scan.angle_max = ANGLE_MAX;
         scan.ranges.resize(NUM_RAYS);
+
+        PointCloud3D cloud3d;
 
         {
             std::lock_guard<std::mutex> lock(accumulator_mutex_);
@@ -297,7 +306,11 @@ void LivoxLidar::processPointCloud(uint32_t handle, const uint8_t dev_type, void
                     : MAX_RANGE;
             }
 
-            // Reset accumulators
+            // Move accumulated 3D cloud
+            cloud3d = std::move(accumulated_cloud_);
+            accumulated_cloud_.clear();
+
+            // Reset 2D accumulators
             std::fill(accumulated_ranges_.begin(), accumulated_ranges_.end(), 0.0f);
             std::fill(range_counts_.begin(), range_counts_.end(), 0);
         }
@@ -308,18 +321,18 @@ void LivoxLidar::processPointCloud(uint32_t handle, const uint8_t dev_type, void
             latest_scan_ = scan;
         }
 
-        // Invoke callback
+        // Invoke 2D scan callback
         if (lidar_callback_) {
             static int scan_emit_count = 0;
             if (++scan_emit_count <= 5 || scan_emit_count % 100 == 0) {
                 std::cout << "[LIVOX] Emitting scan #" << scan_emit_count << " (callback=" << (lidar_callback_ ? "set" : "null") << ")" << std::endl;
             }
             lidar_callback_(scan);
-        } else {
-            static int no_callback_count = 0;
-            if (++no_callback_count <= 5) {
-                std::cout << "[LIVOX] WARNING: new_frame but no callback set!" << std::endl;
-            }
+        }
+
+        // Invoke 3D cloud callback
+        if (pointcloud3d_callback_ && cloud3d.size() > 0) {
+            pointcloud3d_callback_(cloud3d);
         }
     }
 
@@ -341,6 +354,13 @@ void LivoxLidar::processPointCloud(uint32_t handle, const uint8_t dev_type, void
             float range = std::sqrt(x * x + y * y);
             if (range < MIN_RANGE || range > MAX_RANGE) continue;
 
+            // Accumulate 3D point
+            accumulated_cloud_.x.push_back(x);
+            accumulated_cloud_.y.push_back(y);
+            accumulated_cloud_.z.push_back(z);
+            accumulated_cloud_.intensity.push_back(points[i].reflectivity);
+
+            // Accumulate 2D scan
             float angle = std::atan2(y, x);
             if (angle < 0) angle += ANGLE_MAX;
 
@@ -362,10 +382,18 @@ void LivoxLidar::processPointCloud(uint32_t handle, const uint8_t dev_type, void
             // Convert cm to meters
             float x = points[i].x / 100.0f;
             float y = points[i].y / 100.0f;
+            float z = points[i].z / 100.0f;
 
             float range = std::sqrt(x * x + y * y);
             if (range < MIN_RANGE || range > MAX_RANGE) continue;
 
+            // Accumulate 3D point
+            accumulated_cloud_.x.push_back(x);
+            accumulated_cloud_.y.push_back(y);
+            accumulated_cloud_.z.push_back(z);
+            accumulated_cloud_.intensity.push_back(points[i].reflectivity);
+
+            // Accumulate 2D scan
             float angle = std::atan2(y, x);
             if (angle < 0) angle += ANGLE_MAX;
 
@@ -383,19 +411,37 @@ void LivoxLidar::processPointCloud(uint32_t handle, const uint8_t dev_type, void
         for (uint32_t i = 0; i < packet->dot_num; i++) {
             if (points[i].tag > 0 && points[i].tag < 16) continue;
 
-            // depth is in mm, theta is horizontal angle in 0.01 degree units
+            // depth is in mm, theta is horizontal angle, phi is vertical angle (0.01 degree units)
             float range = points[i].depth / 1000.0f;
             if (range < MIN_RANGE || range > MAX_RANGE) continue;
 
-            float theta_deg = points[i].theta / 100.0f;
-            float angle = theta_deg * M_PI / 180.0f;
+            float theta_deg = points[i].theta / 100.0f;  // horizontal angle
+            float phi_deg = points[i].phi / 100.0f;      // vertical angle
+            float theta = theta_deg * M_PI / 180.0f;
+            float phi = phi_deg * M_PI / 180.0f;
+
+            // Convert spherical to cartesian
+            float cos_phi = std::cos(phi);
+            float x = range * cos_phi * std::cos(theta);
+            float y = range * cos_phi * std::sin(theta);
+            float z = range * std::sin(phi);
+
+            // Accumulate 3D point
+            accumulated_cloud_.x.push_back(x);
+            accumulated_cloud_.y.push_back(y);
+            accumulated_cloud_.z.push_back(z);
+            accumulated_cloud_.intensity.push_back(points[i].reflectivity);
+
+            // Accumulate 2D scan
+            float angle = theta;
             if (angle < 0) angle += ANGLE_MAX;
 
             int bin = static_cast<int>(angle / ANGLE_MAX * NUM_RAYS);
             bin = std::clamp(bin, 0, NUM_RAYS - 1);
 
-            if (range_counts_[bin] == 0 || range < accumulated_ranges_[bin]) {
-                accumulated_ranges_[bin] = range;
+            float range_2d = range * cos_phi;  // Projected 2D range
+            if (range_counts_[bin] == 0 || range_2d < accumulated_ranges_[bin]) {
+                accumulated_ranges_[bin] = range_2d;
             }
             range_counts_[bin]++;
         }
