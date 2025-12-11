@@ -66,12 +66,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Add Intel RealSense repository and install SDK
+# Note: librealsense2-dkms is omitted - it requires kernel headers/DKMS which
+# aren't available in Docker containers or CI environments. Only needed for
+# USB kernel drivers on a physical host, not for development/compilation.
 RUN apt-get update && apt-get install -y software-properties-common \
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
     || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
     && add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u \
     && apt-get update && apt-get install -y \
-    librealsense2-dkms \
     librealsense2-utils \
     librealsense2-dev \
     && rm -rf /var/lib/apt/lists/*
