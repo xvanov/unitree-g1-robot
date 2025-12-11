@@ -243,18 +243,15 @@ if (fsm_id != 100 && fsm_id != 101) {
 **Channel Subscriber for Sensors:**
 ```cpp
 #include "unitree/robot/channel/channel_subscriber.hpp"
-#include "unitree_hg/msg/dds_/LowState_.hpp"  // G1 uses unitree_hg, NOT unitree_go
+#include "unitree/idl/hg/LowState_.hpp"  // G1 uses unitree_hg IDL types
 
-// LowState subscription (IMU, battery, joint states)
-// G1 humanoid has 29 motors (not 12 like quadrupeds)
-unitree::robot::ChannelSubscriber<unitree_hg::msg::dds_::LowState_> state_sub;
-state_sub.InitChannel("rt/lowstate");
+// Callback function for LowState messages
+// NOTE: Unitree SDK uses void* callback signature - must cast inside
+void LowStateHandler(const void* data) {
+    // Cast the void* to the actual message type
+    const unitree_hg::msg::dds_::LowState_& msg =
+        *static_cast<const unitree_hg::msg::dds_::LowState_*>(data);
 
-// IMPORTANT: Wait for connection before using data
-state_sub.wait_for_connection();  // Blocks until first message received
-std::cout << "[SENSORS] LowState connection established" << std::endl;
-
-state_sub.SetDataCallback([](const unitree_hg::msg::dds_::LowState_& msg) {
     // IMU data
     auto& imu = msg.imu_state();
     float roll = imu.rpy()[0];
@@ -277,7 +274,20 @@ state_sub.SetDataCallback([](const unitree_hg::msg::dds_::LowState_& msg) {
     // Motor states (G1 has 29 motors)
     // msg.motor_state() is array of 29 motor states
     // Each has: q (position), dq (velocity), tau (torque), temperature
-});
+}
+
+// LowState subscription (IMU, battery, joint states)
+// G1 humanoid has 29 motors (not 12 like quadrupeds)
+// Constructor takes channel name and callback together
+unitree::robot::ChannelSubscriber<unitree_hg::msg::dds_::LowState_> state_sub(
+    "rt/lowstate", LowStateHandler);
+
+// Initialize channel (no arguments when callback passed to constructor)
+state_sub.InitChannel();
+
+// IMPORTANT: Wait for connection before using data
+state_sub.wait_for_connection();  // Blocks until first message received
+std::cout << "[SENSORS] LowState connection established" << std::endl;
 
 // Check for connection timeout
 if (state_sub.isTimeout()) {
