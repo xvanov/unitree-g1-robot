@@ -1,5 +1,0 @@
-string plan_id
----
-bool success
-string message
-string inspection_id

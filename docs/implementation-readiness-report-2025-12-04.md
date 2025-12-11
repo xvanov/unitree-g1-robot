@@ -11,53 +11,80 @@
 
 ### ✅ READY FOR IMPLEMENTATION
 
-**Project:** unitree-g1-robot - Autonomous Construction Site Inspector
-**Assessment Date:** 2025-12-04
-**Track:** BMad Method (Greenfield)
+The **unitree-g1-robot** project has passed the Implementation Readiness gate check and is approved to proceed to Phase 4: Implementation.
 
-**Summary:**
-The project artifacts are well-aligned and complete. All 43 MVP functional requirements have architectural support and implementing stories. The remaining 4 FRs (stairs, blue tape mechanism) are intentionally deferred to Phase 2 with clear documentation.
+| Metric | Result |
+|--------|--------|
+| **Critical Issues** | 0 remaining (4 found and resolved) |
+| **PRD Coverage** | 42/44 FRs mapped to stories (FR45-47 correctly deferred) |
+| **Architecture Alignment** | 10 components fully support requirements |
+| **Story Quality** | 14 stories with verification commands |
+| **Sequencing** | Linear dependency chain, no issues |
 
-**Key Findings:**
-| Category | Status |
-|----------|--------|
-| Critical Issues | 0 |
-| High Priority Concerns | 0 |
-| Medium Priority Observations | 1 (FR count typo) |
-| Low Priority Notes | 2 |
+### Key Findings
+
+**Resolved During Assessment:**
+- Added `PlanManager` component to Architecture
+- Updated Story 9 with plan parsing scope
+- Updated Story 14 with CI/CD workflow
+- Created `src/plan/` directory
 
 **Strengths:**
-- Excellent PRD ↔ Architecture ↔ Stories alignment
-- Each story has runnable verification
-- Integration-focused approach reduces risk
-- Technical risks documented with mitigations
+- Soul/Brain/Body architecture enables development without hardware
+- Component simulations (NavSim, SlamSim) support agentic development
+- Stories designed for Claude Code autonomous implementation
+- Clear MVP scope with explicit deferrals
 
-**Recommendation:** Proceed to sprint planning and begin implementation with Story 1
+**Recommendations (non-blocking):**
+- Run test-design workflow after Story 4
+- Schedule robot access for Stories 5-7
+- Obtain Anthropic API key before Story 11
+
+### Next Step
+
+Run **sprint-planning** workflow to initialize sprint tracking and begin implementation.
 
 ---
 
 ## Project Context
 
-**Project Name:** unitree-g1-robot
-**Project Type:** Construction site inspection robot using Unitree G1 EDU
-**Selected Track:** BMad Method (method)
-**Field Type:** Greenfield
+| Attribute | Value |
+|-----------|-------|
+| **Project Name** | unitree-g1-robot |
+| **Project Type** | IoT/Embedded Robotics |
+| **Track** | BMad Method |
+| **Field Type** | Greenfield |
+| **Workflow Status File** | docs/bmm-workflow-status.yaml |
+| **Standalone Mode** | false |
 
-**Workflow Progress at Assessment Time:**
-- **Phase 0 (Discovery):** Product Brief completed (2025-12-03)
-- **Phase 1 (Planning):** PRD exists at `docs/prd.md`, UX Design conditional (if_has_ui)
-- **Phase 2 (Solutioning):** Architecture (`docs/architecture.md`) and Epics (`docs/epics.md`) exist
-- **Phase 3 (Implementation):** Pending this readiness gate check
+### Project Summary
 
-**Artifacts Detected:**
-| Document | Location | Status |
-|----------|----------|--------|
-| Product Brief | `docs/analysis/product-brief-unitree-g1-robot-2025-12-03.md` | Complete |
-| PRD | `docs/prd.md` | Present |
-| Architecture | `docs/architecture.md` | Present |
-| Epics | `docs/epics.md` | Present |
-| UX Design | N/A | Conditional (if_has_ui) |
-| Test Design | N/A | Recommended (not found) |
+Autonomous construction site inspection robot built on the Unitree G1 humanoid platform. The MVP focuses on:
+- Autonomous indoor navigation including stairs
+- Self-localization from 2D construction plans
+- Visual capture and interior representation
+- Defect detection (location errors, quality issues)
+- PDF inspection report generation
+
+### Technology Stack (from Architecture)
+
+| Component | Technology |
+|-----------|------------|
+| Language | C++17 |
+| Robot SDK | unitree_sdk2 (DDS abstracted) |
+| Image Processing | OpenCV |
+| HTTP Client | curl |
+| JSON | nlohmann/json |
+| PDF | libharu |
+| Build | CMake |
+
+### Key Architectural Decisions
+
+- **No ROS2** - SDK is sufficient, avoids middleware overhead
+- **No MuJoCo** - Locomotion only works on real robot
+- **Single C++ Binary** - Performance, simple deployment
+- **Component Simulations** - NavSim, SlamSim for testing without hardware
+- **VLM API** - Claude/GPT-4V for defect detection via HTTP
 
 ---
 
@@ -65,147 +92,131 @@ The project artifacts are well-aligned and complete. All 43 MVP functional requi
 
 ### Documents Reviewed
 
-| Document | File | Lines | Last Modified | Status |
-|----------|------|-------|---------------|--------|
-| **PRD** | `docs/prd.md` | 521 | 2025-12-03 | ✅ Complete |
-| **Architecture** | `docs/architecture.md` | 1040 | 2025-12-04 | ✅ Complete |
-| **Epics & Stories** | `docs/epics.md` | 861 | 2025-12-04 | ✅ Complete |
-| **Product Brief** | `docs/analysis/product-brief-*.md` | 400+ | 2025-12-03 | ✅ Complete |
-| **UX Design** | N/A | - | - | ○ Conditional (no UI) |
-| **Test Design** | N/A | - | - | ○ Recommended (not found) |
+| Document | Path | Status | Description |
+|----------|------|--------|-------------|
+| **PRD** | `docs/prd.md` | ✅ Loaded | Product Requirements Document with FRs, NFRs, user journeys, success criteria |
+| **Architecture** | `docs/architecture.md` | ✅ Loaded | Lightweight C++ Stack v2.0 - Soul/Brain/Body architecture |
+| **Epics** | `docs/epics.md` | ✅ Loaded | 14 stories with acceptance criteria and verification commands |
+| **Product Brief** | `docs/analysis/product-brief-*.md` | ✅ Referenced | Strategic product context (input to PRD) |
+| **Research** | `docs/research/implementation-*.md` | ✅ Referenced | Technical research (input to Architecture) |
+| **UX Design** | N/A | ⊘ Skipped | CLI-based interface, no UI required |
+| **Tech Spec** | N/A | ⊘ Not applicable | BMad Method track (not Quick Flow) |
+| **Test Design** | N/A | ○ Not found | Recommended but not blocking |
 
-### Document Discovery Summary
+### Document Completeness Summary
 
-**PRD (Product Requirements Document):**
-- **Purpose:** Defines functional and non-functional requirements for autonomous construction site inspector robot
-- **Contents:** Executive summary, success criteria, user journeys, 44 functional requirements (FR1-FR44), 22 non-functional requirements, IoT/embedded constraints, phased development plan
-- **Trade Type:** Finishes (MVP scope)
-
-**Architecture Decision Document:**
-- **Purpose:** System architecture with technology decisions, implementation patterns, and project structure
-- **Contents:** Foundation stack (ROS2 + Nav2 + slam_toolbox + Unitree SDK), dual-path architecture, compute split (onboard vs offload), 6 ROS2 packages defined, implementation patterns, coordinate frames, deployment strategy
-- **Key Decision:** Locomotion abstraction (fake for sim, SDK for real)
-
-**Epics & Stories Document:**
-- **Purpose:** Breakdown of requirements into implementable user stories
-- **Contents:** 1 Epic with 12 Stories, each with acceptance criteria, technical notes, runnable verification, prerequisites
-- **Approach:** Integration work - connecting proven libraries (Nav2, slam_toolbox, VLM APIs)
-
-**Missing Documents (Evaluated):**
-- **UX Design:** Not required - project is robotics/IoT with CLI interface, no user-facing UI
-- **Test Design:** Recommended but not required for BMad Method track; integration testing covered in Story 10
+| Category | Expected | Found | Status |
+|----------|----------|-------|--------|
+| Core Planning | PRD | ✅ | Complete |
+| Solutioning | Architecture | ✅ | Complete |
+| Solutioning | Epics/Stories | ✅ | Complete (14 stories) |
+| Optional | UX Design | ⊘ | Appropriately skipped |
+| Recommended | Test Design | ○ | Not performed |
 
 ### Document Analysis Summary
 
 #### PRD Analysis
 
-**Core Requirements & Success Criteria:**
-- **Primary Goal:** Autonomous construction site inspector on Unitree G1 EDU platform
-- **Target Users:** Mike (Multi-Site GC), Carlos (Superintendent)
-- **Success Moment:** "Set up robot before morning meeting, by lunch the whole team had inspection report with issues blue-taped"
+**User Requirements & Personas:**
+- **Mike (Multi-Site GC):** Needs remote site visibility, objective progress tracking, evidence for subcontractor conversations
+- **Carlos (Superintendent):** Needs simple robot deployment, systematic coverage, physical issue marking for crew follow-up
 
-**Technical Success Metrics:**
-| Metric | Target | Priority |
-|--------|--------|----------|
-| Defect Detection Rate | ≥90% | Critical |
-| False Negative Rate | ≤5% | Critical |
-| Route Completion Rate | ≥95% | Critical |
-| Navigation Success (stairs/terrain) | ≥95% | Critical |
-| Blue Tape Placement Accuracy | ±6 inches | Important |
+**Functional Requirements (FR1-FR47):**
+| Category | FRs | Coverage |
+|----------|-----|----------|
+| Plan Management | FR1-FR5 | PDF/PNG upload, parsing, trade type, starting position |
+| Robot Control | FR6-FR11 | Calibration, start/pause/resume/stop, real-time status |
+| Navigation | FR12-FR18 | Autonomous indoor, stairs, obstacles, path replan, completion tracking |
+| Localization | FR19-FR22 | Plan-based self-localization, confidence monitoring |
+| Visual Capture | FR23-FR27 | RGB, depth, LiDAR, interior representation, plan correlation |
+| Defect Detection | FR28-FR33 | Plan comparison, location errors, quality issues, confidence scores |
+| Reporting | FR34-FR40 | PDF report, photos, plan overlay, punch list, categorization |
+| Notifications | FR41-FR44 | Intervention needed, completion, localization failure, blocked path |
+| Physical Marking | FR45-FR47 | **Deferred to Phase 2** |
 
-**Functional Requirements (44 total):**
-- Plan Management: FR1-5 (PDF/PNG upload, parsing, trade type)
-- Robot Control: FR6-11 (calibration, start/pause/resume/abort, status)
-- Navigation: FR12-18 (autonomous, stairs, obstacles, replanning)
-- Localization: FR19-22 (self-localization, confidence, failure handling)
-- Visual Capture: FR23-27 (RGB, depth, LiDAR, interior representation)
-- Defect Detection: FR28-33 (plan comparison, location/quality issues, confidence)
-- Reporting: FR34-40 (PDF report, photos, punch list)
-- Notifications: FR41-44 (intervention required, complete, failures)
-- Physical Marking: FR45-47 (blue tape - **DEFERRED to Phase 2**)
+**Non-Functional Requirements (NFR1-NFR22):**
+| Category | Key Requirements |
+|----------|------------------|
+| Performance | NFR1-5: <500ms obstacle response, 10Hz localization, 1fps capture |
+| Reliability | NFR6-10: 95% route completion, graceful degradation |
+| Safety | NFR11-15: E-stop <500ms, collision avoidance, operator supervision |
+| Hardware | NFR16-19: 2hr battery, Jetson compute budget, WiFi connectivity |
+| Data | NFR20-22: Storage for route data, plan persistence, report retention |
 
-**Non-Functional Requirements (22 total):**
-- Performance: 500ms obstacle response, 10Hz localization, 1fps capture
-- Reliability: ≥95% route completion, graceful degradation
-- Safety: E-stop <500ms, collision avoidance ≥0.5m, battery management
-- Hardware: 2hr battery, Jetson Orin compute budget, WiFi required
+**Success Criteria:**
+- Defect Detection Rate: ≥90%
+- False Negative Rate: ≤5%
+- Route Completion Rate: ≥95%
+- Navigation Success (stairs): ≥95%
+- Plan Correlation Accuracy: ≥90%
 
 **Scope Boundaries:**
-- **In MVP:** Indoor navigation (flat floors), finishes trade, VLM defect detection, PDF reports
-- **Deferred:** Stairs (FR13), blue tape (FR45-47), multi-trade, outdoor, dashboard
+- ✅ MVP: Indoor, finishes trade, single site, PDF reports
+- ❌ Deferred: BIM, outdoor, multi-trade, dashboard, blue tape placement
 
 ---
 
 #### Architecture Analysis
 
-**System Design Decisions:**
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Language | Python 3.10 | unitree_sdk2 requirement |
-| DDS Middleware | CycloneDDS 0.10.x | Unitree + Nav2 compatibility |
-| Path Planning | Nav2 Behavior Trees | ROS2 industry standard |
-| 2D SLAM | slam_toolbox | Proven lifelong mapping |
-| Locomotion | SDK LocoClient | Use Unitree's built-in controller |
-| Simulation | MuJoCo + fake locomotion | Fast iteration, teleport-based |
-| Defect Detection | VLM API (GPT-4V/Claude) | No training needed, fast MVP |
-| Deployment | Docker on Jetson | Reproducible, NVIDIA support |
+**Soul/Brain/Body Design:**
+- **Soul (Container):** Application logic - portable, reusable, runs in Docker
+- **Brain (Compute):** Mac/Linux/Jetson - interchangeable host
+- **Body (G1):** Physical robot - dumb terminal receiving commands
 
-**Technology Stack:**
-- **Onboard (Jetson Orin NX 16GB):** Sensor capture, SLAM, Nav2, obstacle avoidance, state machine
-- **Offloaded (Server via WiFi):** Plan parsing, VLM API calls, report generation
+**Component Structure:**
+| Component | Purpose | Key Classes |
+|-----------|---------|-------------|
+| Navigation | Path planning, obstacle avoidance | `Planner` (A*), `Costmap`, `PathFollower` |
+| SLAM | Map building, localization | `GridMapper`, `Localizer` |
+| Sensors | SDK data subscriptions | `SensorManager` |
+| Locomotion | Motion control | `LocoController` |
+| Safety | E-stop, battery, collision | `SafetyMonitor` |
+| Detection | VLM API integration | `VlmClient` |
+| Report | PDF generation | `ReportGenerator` |
+| Capture | Image acquisition | `ImageCapture` |
+| App | State management, CLI | `StateMachine`, `InspectorApp` |
 
-**Project Structure (6 ROS2 packages):**
-1. `g1_bringup` - Launch files, system config
-2. `g1_navigation` - Nav2 integration, loco_bridge
-3. `g1_perception` - Sensors, capture, SLAM interface
-4. `g1_inspection` - State machine, defect detection, reporting
-5. `g1_safety` - E-stop, collision, battery monitoring
-6. `g1_interfaces` - Custom messages, services, actions
+**Component Simulations (Key for Agentic Development):**
+- **NavSim:** 2D navigation testing with PNG maps → outputs trajectory.png, metrics.json
+- **SlamSim:** Map building verification → outputs accuracy.json
+- **DetectionSim:** VLM prompt testing → outputs defects.json
 
-**Key Integration: Nav2 → LocoClient Bridge**
-- Nav2 decides WHERE to go (path planning)
-- LocoClient handles HOW to walk (Unitree's proven locomotion)
-- Bridge node subscribes to `/cmd_vel`, calls `SetVelocity()`
-
-**Implementation Patterns Defined:**
-- ROS2 naming conventions (snake_case topics, `/g1/` namespace)
-- Python code style (PEP 8, type hints, Google docstrings)
-- Logging conventions (structured with context tags)
-- Error handling (publish errors, don't crash nodes)
+**Technology Choices:**
+- unitree_sdk2 for robot communication (abstracts DDS)
+- OpenCV for image processing
+- curl for HTTP (VLM API)
+- nlohmann/json for JSON parsing
+- libharu for PDF generation
 
 ---
 
-#### Epics & Stories Analysis
+#### Epics/Stories Analysis
 
-**Epic Structure:**
-- **1 Epic:** Construction Site Inspector MVP
-- **12 Stories:** Sequential, each with runnable deliverable
+**Story Breakdown (14 stories, linear dependency):**
 
-**Story Breakdown:**
-| # | Story | Key Deliverable | Prerequisites |
-|---|-------|-----------------|---------------|
-| 1 | Project Setup & ROS2 Workspace | `colcon build` succeeds | None |
-| 2 | Simulation Environment | MuJoCo + RViz + teleop | Story 1 |
-| 2.5 | Hardware Connectivity - Hello World | Real robot waves, sensors stream | Story 2 |
-| 3 | Navigation Stack Integration | Autonomous nav to goal | Story 2.5 |
-| 4 | Localization & Safety Systems | E-stop, battery monitor | Story 3 |
-| 5 | Plan Management & Calibration | Upload plan, calibrate | Story 4 |
-| 6 | Inspection State Machine & CLI | Full CLI workflow | Story 5 |
-| 7 | Visual Capture Pipeline | Images with pose metadata | Story 6 |
-| 8 | VLM Defect Detection | Defect JSON from images | Story 7 |
-| 9 | Report Generation | PDF with punch list | Story 8 |
-| 10 | Integration Testing | End-to-end in simulation | Story 9 |
-| 11 | Docker Deployment | `docker-compose up` on hardware | Story 10 |
+| Story | Title | Prerequisites | Verification Method |
+|-------|-------|---------------|---------------------|
+| 1 | Project Setup | None | Build success, binary runs |
+| 2 | Navigation Core | 1 | Unit tests pass |
+| 3 | Navigation Simulation (NavSim) | 2 | trajectory.png, metrics.json output |
+| 4 | SLAM Core | 3 | Unit tests, slam_sim accuracy |
+| 5 | Sensor Interface | 4 | Sensor data received (robot/mock) |
+| 6 | Locomotion Interface | 5 | Loco commands sent (robot) |
+| 7 | Hardware Hello World | 6 | Robot physically moves (human verify) |
+| 8 | Safety System | 7 | Safety tests pass |
+| 9 | State Machine + CLI | 8 | CLI commands work |
+| 10 | Visual Capture | 9 | Images captured with metadata |
+| 11 | VLM Defect Detection | 10 | VLM returns defects JSON |
+| 12 | Report Generation | 11 | PDF generated |
+| 13 | Integration Testing | 12 | All integration tests pass |
+| 14 | Docker Deployment | 13 | Docker builds and runs |
 
 **Story Quality Assessment:**
-- ✅ Each story has clear acceptance criteria
-- ✅ Each story has runnable verification commands
-- ✅ Each story has technical notes
-- ✅ Dependencies are explicit and linear
-- ✅ FR coverage matrix provided (44/47 covered, 3 intentionally deferred)
-
-**Key Insight from Epics:**
-> "This is **integration work** - we're not building a locomotion controller, SLAM system, path planner, or vision model. We're building the **glue** that connects these pieces."
+- ✅ All stories have clear acceptance criteria
+- ✅ All stories have verification commands
+- ✅ Prerequisites explicitly defined
+- ✅ Scope sections detail implementation
+- ✅ Stories appropriately sized (no epic-level stories)
 
 ---
 
@@ -215,78 +226,102 @@ The project artifacts are well-aligned and complete. All 43 MVP functional requi
 
 #### PRD ↔ Architecture Alignment
 
-| PRD Requirement Area | Architecture Support | Status |
-|---------------------|---------------------|--------|
-| Plan Management (FR1-5) | `g1_inspection` package, `plan_parser.py` | ✅ Aligned |
-| Robot Control (FR6-11) | `g1_bringup` + CLI + state machine | ✅ Aligned |
-| Navigation (FR12, 14-18) | Nav2 + loco_bridge + slam_toolbox | ✅ Aligned |
-| Stairs (FR13) | Explicitly deferred - flat floors only | ✅ Intentional |
-| Localization (FR19-22) | slam_toolbox + confidence monitoring | ✅ Aligned |
-| Visual Capture (FR23-27) | `g1_perception` + ROS2 bags | ✅ Aligned |
-| Defect Detection (FR28-33) | VLM API (offloaded) + plan correlation | ✅ Aligned |
-| Reporting (FR34-40) | `report_generator.py` + ReportLab | ✅ Aligned |
-| Notifications (FR41-44) | State machine + `/g1/notifications` topic | ✅ Aligned |
-| Physical Marking (FR45-47) | Explicitly deferred to Phase 2 | ✅ Intentional |
+| PRD Requirement Category | Architecture Support | Status |
+|--------------------------|---------------------|--------|
+| Plan Management (FR1-5) | Not explicitly covered in Architecture | ⚠️ Gap |
+| Robot Control (FR6-11) | `StateMachine`, `LocoController` | ✅ Aligned |
+| Navigation (FR12-18) | `Planner`, `Costmap`, `PathFollower` | ✅ Aligned |
+| Localization (FR19-22) | `GridMapper`, `Localizer` (odometry-only for MVP noted) | ✅ Aligned |
+| Visual Capture (FR23-27) | `ImageCapture`, `SensorManager` | ✅ Aligned |
+| Defect Detection (FR28-33) | `VlmClient` | ✅ Aligned |
+| Reporting (FR34-40) | `ReportGenerator` | ✅ Aligned |
+| Notifications (FR41-44) | `SafetyMonitor` + `StateMachine` | ✅ Aligned |
+| Physical Marking (FR45-47) | Explicitly deferred in both docs | ✅ Consistent |
 
-**NFR Support:**
-| NFR | Architecture Support | Status |
-|-----|---------------------|--------|
-| 500ms obstacle response | Onboard Nav2 costmap | ✅ |
-| 10Hz localization | slam_toolbox | ✅ |
-| 1fps image capture | `ImageCapture` node | ✅ |
-| E-stop <500ms | `g1_safety` package | ✅ |
-| 2hr battery budget | Battery monitor + state machine | ✅ |
-| Graceful degradation | Error handling patterns defined | ✅ |
+**NFR Support in Architecture:**
 
-**Verdict:** Architecture fully supports all MVP requirements. Deferred items explicitly documented in both PRD and Architecture.
+| NFR Category | Architecture Support | Status |
+|--------------|---------------------|--------|
+| NFR1: <500ms obstacle response | NavSim verification, real-time loop | ✅ Addressed |
+| NFR2: 10Hz localization | Architecture mentions 10Hz nav loop | ✅ Addressed |
+| NFR6: 95% route completion | NavSim metrics.json verification | ✅ Testable |
+| NFR11: E-stop <500ms | `SafetyMonitor.emergencyStop()` | ✅ Addressed |
+| NFR16: 2hr battery | `SafetyMonitor.checkBattery()` | ✅ Addressed |
+| NFR18: WiFi connectivity | Always-online architecture noted | ✅ Addressed |
+
+**Findings:**
+- ✅ Strong alignment between PRD requirements and Architecture components
+- ⚠️ **Gap:** Plan Management (FR1-5) not explicitly covered in Architecture - need plan parsing/storage component
+- ✅ Architecture explicitly notes "No UI" which aligns with CLI-based PRD scope
+- ✅ Deferred features (blue tape) consistent across both documents
 
 ---
 
 #### PRD ↔ Stories Coverage
 
-| PRD Category | Stories Covering | Coverage |
-|--------------|-----------------|----------|
-| Plan Management (FR1-5) | Story 5 | ✅ Complete |
-| Robot Control (FR6-11) | Stories 5, 6 | ✅ Complete |
-| Navigation (FR12, 14-18) | Story 3 | ✅ Complete |
-| Localization (FR19-22) | Stories 3, 4 | ✅ Complete |
-| Visual Capture (FR23-27) | Story 7 | ✅ Complete |
-| Defect Detection (FR28-33) | Story 8 | ✅ Complete |
-| Reporting (FR34-40) | Story 9 | ✅ Complete |
-| Notifications (FR41-44) | Stories 4, 6 | ✅ Complete |
+**Functional Requirements Traceability:**
 
-**Acceptance Criteria Alignment:**
-- PRD success metric "≥90% defect detection" → Story 8 acceptance criteria includes VLM detection validation
-- PRD success metric "≥95% route completion" → Story 3 acceptance criteria includes Nav2 goal completion
-- PRD success metric "report within 30 minutes" → Story 9 acceptance criteria includes report generation timing
+| FR Category | Implementing Stories | Coverage |
+|-------------|---------------------|----------|
+| FR1-5: Plan Management | Story 9 (CLI `upload --plan`) | ⚠️ Partial - parsing not detailed |
+| FR6-11: Robot Control | Story 9 (State Machine + CLI) | ✅ Full |
+| FR12-18: Navigation | Stories 2, 3 (Nav Core, NavSim) | ✅ Full |
+| FR19-22: Localization | Story 4 (SLAM Core) | ✅ Full |
+| FR23-27: Visual Capture | Story 10 (Visual Capture) | ✅ Full |
+| FR28-33: Defect Detection | Story 11 (VLM Detection) | ✅ Full |
+| FR34-40: Reporting | Story 12 (Report Generation) | ✅ Full |
+| FR41-44: Notifications | Story 8 (Safety), Story 9 (State Machine) | ✅ Full |
+| FR45-47: Physical Marking | None (correctly deferred) | ✅ Consistent |
 
-**Verdict:** All MVP FRs have implementing stories. Acceptance criteria trace back to PRD success metrics.
+**User Journey Coverage:**
+
+| Journey | Key Requirements | Story Coverage |
+|---------|------------------|----------------|
+| Carlos: Deploy & Inspect | Simple deployment, route execution, report | Stories 7, 9, 10, 12 |
+| Mike: Remote Review | Inspection report, photos, issue list | Stories 11, 12 |
+| Carlos: Robot Recovery | Obstacle handling, manual intervention | Stories 2, 8, 9 |
+
+**Findings:**
+- ✅ 42 of 44 active FRs have story coverage (FR45-47 correctly excluded)
+- ⚠️ **Gap:** Plan parsing (FR3) not explicitly addressed - Story 9 mentions `upload --plan` but no parsing story
+- ✅ User journeys fully covered by story combination
+- ✅ All success criteria have testable verification in stories
 
 ---
 
 #### Architecture ↔ Stories Implementation Check
 
-| Architecture Component | Implementing Story | Status |
-|-----------------------|-------------------|--------|
-| ROS2 workspace + packages | Story 1 | ✅ |
-| MuJoCo simulation | Story 2 | ✅ |
-| Nav2 + slam_toolbox | Story 3 | ✅ |
-| Nav2→LocoClient bridge | Story 3 | ✅ |
-| Safety node (E-stop, battery) | Story 4 | ✅ |
-| Plan parser | Story 5 | ✅ |
-| State machine | Story 6 | ✅ |
-| CLI interface | Story 6 | ✅ |
-| Image capture pipeline | Story 7 | ✅ |
-| VLM defect detection | Story 8 | ✅ |
-| Report generator | Story 9 | ✅ |
-| Docker deployment | Story 11 | ✅ |
+| Architecture Component | Implementing Story | Alignment |
+|------------------------|-------------------|-----------|
+| `Planner`, `Costmap`, `PathFollower` | Story 2: Navigation Core | ✅ Match |
+| `NavSim` | Story 3: Navigation Simulation | ✅ Match |
+| `GridMapper`, `Localizer` | Story 4: SLAM Core | ✅ Match |
+| `SensorManager` | Story 5: Sensor Interface | ✅ Match |
+| `LocoController` | Story 6: Locomotion Interface | ✅ Match |
+| Hardware integration | Story 7: Hardware Hello World | ✅ Match |
+| `SafetyMonitor` | Story 8: Safety System | ✅ Match |
+| `StateMachine`, CLI | Story 9: State Machine + CLI | ✅ Match |
+| `ImageCapture` | Story 10: Visual Capture | ✅ Match |
+| `VlmClient` | Story 11: VLM Defect Detection | ✅ Match |
+| `ReportGenerator` | Story 12: Report Generation | ✅ Match |
+| Integration tests | Story 13: Integration Testing | ✅ Match |
+| Docker deployment | Story 14: Docker Deployment | ✅ Match |
 
-**Infrastructure Stories:**
-- Story 1 creates full project structure matching Architecture's 6-package layout
-- Story 2 sets up simulation environment before real hardware
-- Story 11 creates Docker deployment matching Architecture's container strategy
+**Infrastructure Stories Check (Greenfield):**
 
-**Verdict:** All architectural components have corresponding implementation stories. Infrastructure/setup stories properly sequenced before feature stories.
+| Infrastructure Need | Story | Status |
+|--------------------|-------|--------|
+| CMake project setup | Story 1 | ✅ Present |
+| Dependencies config | Story 1 | ✅ Present |
+| Directory structure | Story 1 | ✅ Present |
+| Docker containerization | Story 14 | ✅ Present |
+| CI/CD pipeline | Not explicit | ⚠️ Not addressed |
+
+**Findings:**
+- ✅ Perfect 1:1 mapping between Architecture components and Stories
+- ✅ Story sequencing matches Architecture's dependency graph
+- ✅ Verification methods in Stories align with Architecture's agentic development approach
+- ⚠️ **Gap:** No explicit CI/CD story (could be added to Story 14 or separate)
 
 ---
 
@@ -294,93 +329,114 @@ The project artifacts are well-aligned and complete. All 43 MVP functional requi
 
 ### Critical Findings
 
-**Critical Gaps Found: 0**
+#### Gaps Resolved During This Assessment
 
-No critical gaps identified. All core PRD requirements have architectural support and implementing stories.
+| Gap | Resolution | Status |
+|-----|------------|--------|
+| Plan Management not in Architecture | Added `PlanManager` component with full class definition | ✅ Fixed |
+| Plan parsing not detailed in Story 9 | Updated Story 9 with `PlanManager` scope, CLI commands, acceptance criteria | ✅ Fixed |
+| No CI/CD story | Updated Story 14 with GitHub Actions workflow | ✅ Fixed |
+| `src/plan/` directory missing | Created directory in scaffold | ✅ Fixed |
 
----
+#### Remaining Critical Gaps
 
-### Sequencing Issues
+**None identified.** All critical gaps have been resolved.
 
-**Sequencing Issues Found: 0**
+#### High Priority Concerns
 
-Story dependencies are linear and properly ordered:
-- Foundation (Stories 1-2) → Hardware Validation (2.5) → Navigation (3-4) → Inspection Logic (5-7) → AI/Reporting (8-9) → Testing/Deployment (10-11)
-- No circular dependencies
-- Infrastructure stories precede feature stories
+| Concern | Impact | Mitigation |
+|---------|--------|------------|
+| Test Design not performed | Testability concerns may surface late | Stories include verification commands; recommend running test-design post-implementation |
+| Hardware-dependent stories (5-7, 10) | Cannot fully verify without robot | NavSim/SlamSim cover logic; hardware verification is explicit gate |
+| VLM API dependency | External service availability | Retry logic in `VlmClient`; fallback to report-only mode |
 
----
+#### Sequencing Issues
 
-### Potential Contradictions
+**None identified.** Story dependency chain is well-ordered:
+1. Setup → Navigation → Simulation → SLAM (can test without hardware)
+2. Sensors → Locomotion → Hardware Hello (hardware integration)
+3. Safety → State Machine → Capture → Detection → Report (feature completion)
+4. Integration → Docker (deployment)
 
-**Contradictions Found: 0**
+#### Potential Contradictions
 
-Technology choices are consistent across all documents:
-- Python 3.10 throughout
-- ROS2 Humble + CycloneDDS consistently specified
-- `/g1/` namespace used in all examples
-- Same package structure referenced in Architecture and Epics
+**None identified.** All documents use consistent terminology and approach.
 
----
+#### Gold-Plating Check
 
-### Gold-Plating Assessment
+| Item | Assessment |
+|------|------------|
+| Component simulations (NavSim, SlamSim) | ✅ Justified - enables agentic development without hardware |
+| Docker deployment | ✅ Justified - required for reproducible deployment |
+| CI/CD | ✅ Justified - catches issues early, standard practice |
+| VLM for detection | ✅ Justified - avoids ML infrastructure complexity |
 
-**Gold-Plating Found: 0**
+**No gold-plating detected.** All features trace to PRD requirements or architectural necessities.
 
-Architecture stays within PRD scope:
-- No features beyond requirements
-- Simulation is necessary for development, not gold-plating
-- Docker deployment supports the defined deployment strategy
+#### Testability Review
 
----
+| Check | Status |
+|-------|--------|
+| Test-design workflow completed | ○ Not performed (recommended, not blocking for BMad Method) |
+| Stories have verification commands | ✅ All 14 stories have explicit verification |
+| Simulation coverage | ✅ NavSim, SlamSim, DetectionSim cover core logic |
+| Integration test story | ✅ Story 13 covers end-to-end scenarios |
 
-### Technical Risks Identified
-
-| Risk | Likelihood | Impact | Mitigation in Docs |
-|------|------------|--------|-------------------|
-| Plan-based localization fails | Medium | Critical | ✅ PRD: "fallback to manual operator guidance" |
-| Defect detection accuracy insufficient | Medium | High | ✅ PRD: "Start with obvious defects; iterative model improvement" |
-| Navigation fails on construction debris | Medium | Medium | ✅ Architecture: "Operator supervision; conservative route planning" |
-| WiFi disconnect during inspection | Low | Medium | ✅ Architecture: "State machine pauses, resumes on reconnect" |
-| VLM API rate limits/costs | Low | Medium | ✅ Architecture: "Batch images for efficiency" |
-
-**Verdict:** All identified risks have documented mitigation strategies.
-
----
-
-### Testability Review
-
-**Test Design Document:** Not found (recommended but not required for BMad Method)
-
-**Testing Coverage in Stories:**
-- Story 10 explicitly covers integration testing and edge cases
-- Each story has "Runnable Verification" section with test commands
-- Story 10 includes: happy path, obstacle blocking, localization degradation, low battery, E-stop, WiFi disconnect
-
-**Assessment:** Testing is adequately covered within Story 10. Formal test design document not required for this track.
+**Recommendation:** Consider running test-design workflow after first sprint to assess testability of implemented code.
 
 ---
 
 ## UX and Special Concerns
 
-**UX Validation: Not Applicable**
+### UX Validation
 
-This is an IoT/Robotics project with CLI-only operator interface. No user-facing UI components.
+**Status:** ⊘ Not Applicable
 
-**Operator Interface:**
-- CLI commands (`g1-inspect start`, `status`, `stop`, etc.)
-- RViz for development visualization
-- PDF reports for stakeholder communication
+This project uses a CLI-based interface for robot control. UX design was appropriately skipped during Phase 1 planning.
 
-**Special Considerations Reviewed:**
+| UX Consideration | Assessment |
+|------------------|------------|
+| UI Components | None - CLI only |
+| Accessibility | N/A for CLI |
+| Responsive Design | N/A |
+| User Flows | Covered by CLI command sequences in Story 9 |
 
-| Concern | Status | Notes |
-|---------|--------|-------|
-| Accessibility | N/A | No user-facing UI |
-| Internationalization | N/A | CLI + PDF reports in English |
-| Compliance | ✅ Addressed | Safety requirements (E-stop, collision avoidance) in PRD/Architecture |
-| Performance Benchmarks | ✅ Defined | NFRs specify measurable targets |
-| Monitoring/Observability | ✅ Addressed | Structured logging, `/g1/inspection/status` topic |
+### Special Concerns Validation
+
+#### IoT/Embedded Robotics Considerations
+
+| Concern | Coverage | Status |
+|---------|----------|--------|
+| **Safety** | `SafetyMonitor` component, E-stop <500ms, battery monitoring | ✅ Addressed |
+| **Real-time Performance** | NFR1-2 specify timing requirements, NavSim verifies | ✅ Addressed |
+| **Hardware Connectivity** | Story 7 (Hardware Hello World) validates | ✅ Addressed |
+| **Sensor Integration** | Story 5 covers SDK subscriptions | ✅ Addressed |
+| **Operator Supervision** | PRD NFR15 requires operator watching during MVP | ✅ Addressed |
+
+#### Compliance and Standards
+
+| Area | Status |
+|------|--------|
+| Construction safety | Operator supervision required (PRD) |
+| Data retention | NFR22 specifies report retention |
+| Robot safety | Built-in G1 safety features + SafetyMonitor |
+
+#### Monitoring and Observability
+
+| Capability | Implementation |
+|------------|----------------|
+| Real-time status | StateMachine publishes state, battery, location, completion % |
+| Logging | Structured logging throughout (Story 13) |
+| Error reporting | Safety system notifications (FR41-44) |
+
+### Special Robotics Concerns
+
+| Concern | Mitigation in Architecture |
+|---------|---------------------------|
+| Locomotion only works on real hardware | Component simulations test logic; hardware is explicit gate at Story 7 |
+| WiFi connectivity required | Always-online architecture; operator supervision for MVP |
+| 2-hour battery limit | SafetyMonitor tracks battery; route planning within budget |
+| Construction site hazards | Collision avoidance, obstacle detection, E-stop capability |
 
 ---
 
@@ -390,43 +446,41 @@ This is an IoT/Robotics project with CLI-only operator interface. No user-facing
 
 _Must be resolved before proceeding to implementation_
 
-**None identified.**
-
----
+**None.** All critical issues identified during this assessment have been resolved:
+- ✅ PlanManager component added to Architecture
+- ✅ Story 9 updated with plan parsing scope
+- ✅ Story 14 updated with CI/CD workflow
+- ✅ `src/plan/` directory created
 
 ### 🟠 High Priority Concerns
 
 _Should be addressed to reduce implementation risk_
 
-**None identified.**
-
----
+| ID | Concern | Recommendation |
+|----|---------|----------------|
+| HP-1 | Test Design workflow not performed | Run test-design after completing Stories 1-4 to validate testability early |
+| HP-2 | Hardware-dependent stories (5-7) block simulation-only development | Complete Stories 1-4 first; ensure robot access scheduled for Story 5+ |
+| HP-3 | VLM API requires API key and network access | Document API key setup in Story 11; implement retry logic |
 
 ### 🟡 Medium Priority Observations
 
 _Consider addressing for smoother implementation_
 
-1. **FR Count Typo in Epics Document**
-   - Location: `docs/epics.md` line ~815
-   - Issue: States "44/47 FRs (3 intentionally deferred)" but 4 FRs are deferred (FR13, FR45, FR46, FR47)
-   - Impact: Minor documentation inconsistency
-   - Recommendation: Correct to "43/47 FRs (4 intentionally deferred)"
-
----
+| ID | Observation | Suggestion |
+|----|-------------|------------|
+| MP-1 | No explicit error handling story | Error handling is distributed across stories; consider consolidating patterns in Story 1 |
+| MP-2 | PDF parsing may need external library (poppler) | Add poppler to dependencies in Story 1; document in setup.sh |
+| MP-3 | Test data (office.png, defect samples) not yet created | Create test_data/ contents early in Story 1 or 3 |
 
 ### 🟢 Low Priority Notes
 
 _Minor items for consideration_
 
-1. **VLM Provider Selection**
-   - Architecture mentions "GPT-4V or Claude" but doesn't specify default
-   - Story 8 uses `OPENAI_API_KEY` in example
-   - Note: Fine as-is; provider is configurable via environment variable
-
-2. **Test Data Location**
-   - Stories reference `test_data/` directory for sample plans and images
-   - This directory should be created as part of Story 1 or documented in setup
-   - Note: Minor; will be addressed during implementation
+| ID | Note |
+|----|------|
+| LP-1 | Architecture version is 2.0 - ensure epics.md header matches |
+| LP-2 | Consider adding CHANGELOG.md during implementation |
+| LP-3 | Docker multi-stage build could reduce image size (optimization for later) |
 
 ---
 
@@ -434,31 +488,40 @@ _Minor items for consideration_
 
 ### ✅ Well-Executed Areas
 
-1. **Excellent PRD-Architecture Alignment**
-   - Every functional requirement has clear architectural support
-   - NFRs have specific implementation strategies
-   - Deferred items explicitly documented in both documents
+#### Architecture Excellence
 
-2. **Strong Story Quality**
-   - Each story has runnable verification commands
-   - Clear acceptance criteria tied to PRD success metrics
-   - Linear dependencies prevent parallel work conflicts
-   - "Integration work" framing keeps scope realistic
+| Strength | Details |
+|----------|---------|
+| **Soul/Brain/Body separation** | Clean abstraction enabling development on Mac, deployment anywhere |
+| **Component simulations** | NavSim, SlamSim, DetectionSim enable agentic development without hardware |
+| **No ROS2 decision** | Reduces complexity significantly; SDK handles DDS abstraction |
+| **Single binary architecture** | Simple deployment, no dependency management at runtime |
 
-3. **Comprehensive Risk Documentation**
-   - Technical risks identified in PRD with likelihood/impact
-   - Mitigation strategies documented
-   - Validation sequence ordered by risk (localization first)
+#### Story Quality
 
-4. **Well-Defined Implementation Patterns**
-   - Architecture includes naming conventions, code style, logging patterns
-   - Project structure with 6 packages matches requirements mapping
-   - Error handling philosophy defined (publish errors, don't crash)
+| Strength | Details |
+|----------|---------|
+| **Verification commands** | Every story has explicit, runnable verification |
+| **Linear dependency chain** | Clear progression, no circular dependencies |
+| **Agentic development ready** | Stories designed for Claude Code autonomous implementation |
+| **Appropriate sizing** | No epic-level stories; all implementable units |
 
-5. **Realistic MVP Scope**
-   - Clear boundaries (flat floors, finishes trade, PDF reports)
-   - Intentional deferrals (stairs, blue tape, dashboard)
-   - Integration approach leverages proven libraries
+#### PRD Clarity
+
+| Strength | Details |
+|----------|---------|
+| **User personas** | Mike and Carlos journeys drive requirements |
+| **Explicit deferrals** | Blue tape, BIM, outdoor clearly marked as post-MVP |
+| **Measurable success criteria** | 90% detection, 95% navigation quantified |
+| **NFRs well-specified** | Timing, reliability, safety requirements complete |
+
+#### Cross-Document Consistency
+
+| Strength | Details |
+|----------|---------|
+| **Terminology alignment** | PRD, Architecture, Epics use same component names |
+| **Scope consistency** | MVP boundaries match across all documents |
+| **Technology stack** | C++17, unitree_sdk2, OpenCV consistent throughout |
 
 ---
 
@@ -466,60 +529,106 @@ _Minor items for consideration_
 
 ### Immediate Actions Required
 
-**None.** Project is ready for implementation.
-
----
+**None.** All critical gaps have been resolved during this assessment. The project is ready to proceed to implementation.
 
 ### Suggested Improvements
 
-1. **Fix FR count in epics.md** - Change "44/47 (3 deferred)" to "43/47 (4 deferred)"
-2. **Add test_data/ directory** - Include sample floor plans and test images in repo for Story verification
-
----
+| Priority | Improvement | When |
+|----------|-------------|------|
+| High | Add poppler dependency to CMakeLists.txt for PDF parsing | Story 1 |
+| High | Create test_data/office.png map for NavSim | Story 1 or 3 |
+| Medium | Run test-design workflow after Stories 1-4 | After Story 4 |
+| Medium | Document ANTHROPIC_API_KEY setup process | Story 11 |
+| Low | Consider adding integration test for plan loading | Story 13 |
 
 ### Sequencing Adjustments
 
-**None required.** Current story sequence is well-structured:
-- Foundation → Navigation → Inspection → AI/Reporting → Testing → Deployment
+**No adjustments needed.** The current story sequence is optimal:
+
+```
+Phase 1: Simulation-Testable (Stories 1-4)
+├── Story 1: Project Setup
+├── Story 2: Navigation Core
+├── Story 3: NavSim ← First validation checkpoint
+└── Story 4: SLAM Core
+
+Phase 2: Hardware Integration (Stories 5-7)
+├── Story 5: Sensor Interface
+├── Story 6: Locomotion Interface
+└── Story 7: Hardware Hello World ← Hardware validation gate
+
+Phase 3: Feature Completion (Stories 8-12)
+├── Story 8: Safety System
+├── Story 9: State Machine + CLI + Plan Management
+├── Story 10: Visual Capture
+├── Story 11: VLM Defect Detection
+└── Story 12: Report Generation
+
+Phase 4: Deployment (Stories 13-14)
+├── Story 13: Integration Testing
+└── Story 14: Docker + CI/CD
+```
+
+**Recommendation:** Complete Stories 1-4 first to validate core algorithms in simulation before requiring hardware access.
 
 ---
 
 ## Readiness Decision
 
-### Overall Assessment: ✅ READY FOR IMPLEMENTATION
+### Overall Assessment: ✅ READY
 
-The project artifacts demonstrate strong alignment across PRD, Architecture, and Epics documents. All MVP requirements have architectural support and implementing stories. Technical risks are identified with mitigation strategies. The integration-focused approach with proven libraries reduces implementation risk.
+The unitree-g1-robot project is **ready for implementation**.
 
-### Conditions for Proceeding (if applicable)
+### Readiness Rationale
 
-**No blocking conditions.**
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| All PRD requirements have story coverage | ✅ Pass | 42/44 active FRs mapped to stories |
+| Architecture supports all requirements | ✅ Pass | 10 components cover all functional areas |
+| Stories have clear acceptance criteria | ✅ Pass | All 14 stories have verification commands |
+| No critical gaps remain | ✅ Pass | 4 gaps identified and resolved during assessment |
+| Sequencing is logical | ✅ Pass | Linear dependency chain, no circular deps |
+| No contradictions between documents | ✅ Pass | Consistent terminology and scope |
+| Greenfield infrastructure stories exist | ✅ Pass | Story 1 (Setup), Story 14 (Docker/CI) |
 
-Optional pre-implementation cleanup:
-- Fix FR count typo in epics.md (cosmetic)
+### Conditions for Proceeding
+
+**None required.** All gates passed.
+
+**Recommendations (non-blocking):**
+1. Ensure robot hardware access is scheduled for Story 5+
+2. Obtain Anthropic API key before Story 11
+3. Consider running test-design workflow after Story 4
 
 ---
 
 ## Next Steps
 
-1. **Run Sprint Planning** (`/bmad:bmm:workflows:sprint-planning`)
-   - Initialize sprint tracking
-   - Set up sprint-status.yaml for story execution
+### Recommended Next Steps
 
-2. **Begin Story 1: Project Setup & ROS2 Workspace**
-   - Run `scripts/setup.sh` to clone dependencies
-   - Create 6-package ROS2 workspace structure
-   - Define custom interfaces (messages, services, actions)
+1. **Run sprint-planning workflow** to initialize sprint tracking
+   - Command: `/bmad:bmm:workflows:sprint-planning`
+   - Agent: sm (Scrum Master)
 
-3. **Validate Development Environment**
-   - Confirm Ubuntu 22.04 + ROS2 Humble installed
-   - Verify Unitree SDK2 compatibility
-   - Test `colcon build` succeeds
+2. **Begin Story 1: Project Setup**
+   - Create CMakeLists.txt with dependencies
+   - Set up directory structure
+   - Configure unitree_sdk2 as external dependency
+   - Verify build succeeds
+
+3. **Progress through Stories 1-4** (simulation-testable)
+   - These can be completed without robot hardware
+   - Validates core navigation and SLAM algorithms
+
+4. **Schedule robot access** for Stories 5-7
+   - Hardware Hello World (Story 7) is the validation gate
 
 ### Workflow Status Update
 
-- **Implementation Readiness:** ✅ Complete
-- **Next Workflow:** sprint-planning (SM agent)
-- **Command:** `/bmad:bmm:workflows:sprint-planning`
+**Status:** Implementation Readiness check complete
+**Result:** ✅ READY for implementation
+**Report saved:** `docs/implementation-readiness-report-2025-12-04.md`
+**Next workflow:** sprint-planning (sm agent)
 
 ---
 
@@ -529,58 +638,46 @@ Optional pre-implementation cleanup:
 
 Based on BMad Method Implementation Readiness Checklist:
 
-**Document Completeness:**
-- [x] PRD exists and is complete
-- [x] PRD contains measurable success criteria
-- [x] PRD defines clear scope boundaries
-- [x] Architecture document exists
-- [x] Epic and story breakdown exists
-- [x] All documents dated and versioned
-
-**Alignment Verification:**
-- [x] Every FR has architectural support
-- [x] All NFRs addressed in architecture
-- [x] Every PRD requirement maps to stories
-- [x] Story acceptance criteria align with PRD
-- [x] Architectural components have implementation stories
-
-**Story Quality:**
-- [x] All stories have acceptance criteria
-- [x] Stories include runnable verification
-- [x] Stories are appropriately sized
-- [x] Dependencies properly sequenced
-- [x] Infrastructure stories precede feature stories
-
----
+| Category | Criteria Checked |
+|----------|------------------|
+| Document Completeness | PRD, Architecture, Epics exist and complete |
+| Document Quality | No placeholders, consistent terminology |
+| PRD ↔ Architecture | All FRs have architectural support |
+| PRD ↔ Stories | All requirements mapped to stories |
+| Architecture ↔ Stories | Components have implementation stories |
+| Story Quality | Acceptance criteria, verification commands |
+| Sequencing | Logical order, no circular dependencies |
+| Greenfield Specifics | Setup and infrastructure stories present |
+| Risk Assessment | Technical risks identified with mitigations |
 
 ### B. Traceability Matrix
 
-| PRD Requirement | Architecture Component | Story |
-|-----------------|----------------------|-------|
-| FR1-5 (Plan Mgmt) | g1_inspection/plan_parser | Story 5 |
-| FR6-11 (Robot Control) | g1_bringup + CLI | Stories 5, 6 |
-| FR12, 14-18 (Navigation) | g1_navigation + Nav2 | Story 3 |
-| FR19-22 (Localization) | slam_toolbox | Stories 3, 4 |
-| FR23-27 (Visual Capture) | g1_perception | Story 7 |
-| FR28-33 (Defect Detection) | VLM API (offload) | Story 8 |
-| FR34-40 (Reporting) | report_generator | Story 9 |
-| FR41-44 (Notifications) | state_machine | Stories 4, 6 |
-| NFR1-5 (Performance) | Onboard processing | Stories 3, 4, 7 |
-| NFR6-10 (Reliability) | Error handling patterns | Story 10 |
-| NFR11-15 (Safety) | g1_safety package | Story 4 |
-| NFR16-19 (Hardware) | Jetson deployment | Story 11 |
-
----
+| PRD Section | Architecture Component | Story |
+|-------------|----------------------|-------|
+| FR1-5 (Plan Management) | PlanManager | Story 9 |
+| FR6-11 (Robot Control) | StateMachine, LocoController | Stories 6, 9 |
+| FR12-18 (Navigation) | Planner, Costmap, PathFollower | Stories 2, 3 |
+| FR19-22 (Localization) | GridMapper, Localizer | Story 4 |
+| FR23-27 (Visual Capture) | ImageCapture, SensorManager | Stories 5, 10 |
+| FR28-33 (Defect Detection) | VlmClient | Story 11 |
+| FR34-40 (Reporting) | ReportGenerator | Story 12 |
+| FR41-44 (Notifications) | SafetyMonitor, StateMachine | Stories 8, 9 |
+| NFR1-5 (Performance) | NavSim verification | Story 3, 13 |
+| NFR6-10 (Reliability) | Integration tests | Story 13 |
+| NFR11-15 (Safety) | SafetyMonitor | Story 8 |
+| NFR16-19 (Hardware) | SDK integration | Stories 5, 6, 7 |
+| NFR20-22 (Data) | Storage management | Stories 10, 12 |
 
 ### C. Risk Mitigation Strategies
 
-| Risk | Mitigation | Validation Point |
-|------|------------|------------------|
-| Plan-based localization fails | Fallback to operator-guided waypoints | Story 3, Story 10 edge cases |
-| Defect detection accuracy insufficient | Start with obvious defects, iterate | Story 8, VLM prompt tuning |
-| Navigation fails on debris | Operator supervision, conservative paths | Story 3, Story 10 obstacle tests |
-| 2hr battery insufficient | Route planning within budget, staged inspections | Story 4 battery monitor |
-| WiFi disconnect | State machine pauses, resumes on reconnect | Story 10 WiFi test case |
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Plan-based localization fails | Medium | Critical | Fallback to manual operator guidance; validate early in Story 4 |
+| Defect detection accuracy insufficient | Medium | High | Start with obvious defects; iterative VLM prompt improvement |
+| Navigation fails on construction debris | Medium | Medium | Operator supervision; conservative route planning |
+| Hardware connectivity issues | Low | High | Story 7 gates further development; comprehensive SDK testing |
+| VLM API unavailable | Low | Medium | Retry logic; graceful degradation to report-only |
+| 2hr battery insufficient | Low | Medium | Plan routes within budget; staged inspections |
 
 ---
 
