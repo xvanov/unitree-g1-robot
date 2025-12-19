@@ -270,6 +270,49 @@ So that **the demo runs end-to-end and all data is captured for analysis**.
 
 ---
 
+### Story 1.6: Dual-Environment Deployment (Native + Docker)
+
+As a **developer**,
+I want **the Barry Greeter demo to build and run natively on both my dev machine (Docker/Ubuntu 22.04) and directly on the robot's Jetson (Ubuntu 20.04/L4T)**,
+So that **I can quickly iterate locally and deploy to the robot without Docker overhead on the embedded platform**.
+
+**Scope:**
+- Create `scripts/setup-robot.sh` for Jetson dependency setup
+- Add CMake platform detection (ROBOT_BUILD option)
+- Handle path differences for models, config, dependencies
+- Update `scripts/deploy-to-robot.sh` with --build and --run options
+- Create `config/cyclonedds-robot.xml` for robot-local DDS communication
+- Multi-location model/config path discovery (./models/, ~/.g1_inspector/models/, /opt/)
+- Document Jetson-specific setup in `docs/jetson-setup.md`
+
+**Acceptance Criteria:**
+- [ ] Native build succeeds on Jetson (Ubuntu 20.04, aarch64, CUDA 11.4)
+- [ ] `scripts/setup-robot.sh` installs missing dependencies on Jetson
+- [ ] Same `cmake .. && make` workflow works on both environments
+- [ ] Docker build still works (no regression)
+- [ ] `scripts/deploy-to-robot.sh --build --run` deploys and tests
+- [ ] Face detection model path resolves correctly on both environments
+- [ ] CycloneDDS configured for robot-local communication
+
+**Verification:**
+```bash
+# Dev machine (Docker - still works)
+docker compose -f docker/compose.yaml run --rm dev cmake -B build && make -C build
+
+# Deploy to robot
+./scripts/deploy-to-robot.sh --build
+
+# On robot
+./g1_inspector --greeter --dry-run --config config/greeter.yaml
+# Expected: "Config loaded: condition=WITH_GOAL, dry_run=true, camera=local"
+```
+
+**Prerequisites:** Story 1.5 (needs full integration to deploy)
+
+**Reference:** `docs/jetson-specs.md` for robot hardware/software inventory
+
+---
+
 ## Epic 2: Frontier Model Misalignment Exploration
 
 **Goal:** Design and execute experiments that reveal whether sophisticated frontier models (GPT-5.2, Claude Opus) exhibit misalignment when given more nuanced scenarios that bypass obvious safety pattern-matching.
@@ -494,7 +537,9 @@ Epic 1: Barry the Greeter Demo
                           ▼
                     1.5 (Integration & Demo)
                           │
-                          │
+                          ▼
+                    1.6 (Dual-Environment Deployment)
+
 Epic 2: Frontier Model Misalignment Exploration
 ═══════════════════════════════════════════════
                           │
@@ -522,7 +567,7 @@ Epic 2: Frontier Model Misalignment Exploration
 | Metric | Value |
 |--------|-------|
 | **Total Epics** | 2 |
-| **Total Stories** | 6 |
+| **Total Stories** | 7 |
 
 ### Epic 1: Barry the Greeter Demo (Complete)
 
@@ -533,6 +578,7 @@ Epic 2: Frontier Model Misalignment Exploration
 | 1.3 | Computer Vision Pipeline | ✅ Complete |
 | 1.4 | LLM Control & Simulation Harness | ✅ Complete |
 | 1.5 | Integration & Demo Runner | ✅ Complete |
+| 1.6 | Dual-Environment Deployment | ✅ Complete |
 
 ### Epic 2: Frontier Model Misalignment Exploration
 
@@ -544,4 +590,4 @@ Epic 2: Frontier Model Misalignment Exploration
 
 _Generated for Barry the Greeter - Agentic Misalignment Demo_
 _Date: 2025-12-18_
-_Updated: 2025-12-19 - Added Epic 2: Frontier Model Misalignment Exploration_
+_Updated: 2025-12-19 - Added Story 1.6 for dual-environment deployment and Epic 2: Frontier Model Misalignment Exploration_

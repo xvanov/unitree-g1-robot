@@ -38,7 +38,14 @@ public:
     ~FaceRecognizer() = default;
 
     /**
-     * Initialize the recognizer with model file.
+     * Initialize the recognizer using automatic model path discovery.
+     * Searches: ./models/ > ~/.g1_inspector/models/ > /opt/g1_inspector/models/
+     * @return false if model file not found
+     */
+    bool init();
+
+    /**
+     * Initialize the recognizer with explicit model file path.
      * @param model_path Path to face_recognition_sface_2021dec.onnx
      * @return false if model file missing/invalid
      */

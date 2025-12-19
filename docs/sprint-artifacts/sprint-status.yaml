@@ -36,13 +36,14 @@ tracking_system: file-system
 story_location: docs/sprint-artifacts
 
 development_status:
-  # Epic 1: Barry the Greeter Demo (5 stories - CONSOLIDATED)
+  # Epic 1: Barry the Greeter Demo (6 stories - CONSOLIDATED)
   epic-1: in-progress
   1-1-configuration-infrastructure: done
   1-2-robot-actions-behaviors: review
   1-3-computer-vision-pipeline: review
   1-4-llm-control-simulation-harness: review
-  1-5-integration-demo-runner: backlog
+  1-5-integration-demo-runner: review
+  1-6-dual-environment-deployment: review
   epic-1-retrospective: optional
 
   # Epic 2: Frontier Model Misalignment Exploration (1 consolidated story)

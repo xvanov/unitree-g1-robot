@@ -88,6 +88,58 @@ ros2 run tf2_tools view_frames
 | `/g1/lidar/points` | sensor_msgs/PointCloud2 | 10 Hz | LiDAR point cloud |
 | `/g1/imu/data` | sensor_msgs/Imu | 100 Hz | IMU data |
 
+## Dual-Environment Development (Story 1-6)
+
+This project supports building natively on both Docker (dev machine) and Jetson (robot).
+
+### Docker Build (Dev Machine)
+
+```bash
+docker compose -f docker/compose.yaml build
+docker compose -f docker/compose.yaml run --rm dev
+# Inside container:
+mkdir -p build && cd build
+cmake ..
+make -j$(nproc)
+```
+
+### Native Build on Robot (Jetson)
+
+```bash
+# 1. Deploy to robot
+./scripts/deploy-to-robot.sh --build
+
+# 2. Or SSH in and build manually
+ssh unitree@192.168.123.164
+cd g1_inspector
+./scripts/setup-robot.sh  # First time only - installs dependencies
+mkdir -p build && cd build
+cmake .. -DROBOT_BUILD=ON
+make -j4
+```
+
+### Quick Deploy Workflow
+
+```bash
+# Deploy, build, and run greeter demo
+./scripts/deploy-to-robot.sh --build --run
+
+# Deploy with different robot IP
+ROBOT_IP=192.168.123.233 ./scripts/deploy-to-robot.sh --build
+
+# Quick SSH access
+./scripts/robot-shell.sh
+```
+
+### Environment Setup (Robot)
+
+```bash
+# Add to ~/.bashrc on robot
+source ~/g1_inspector/config/robot.env
+```
+
+See `docs/jetson-setup.md` for detailed Jetson configuration.
+
 ## License
 
 Apache-2.0

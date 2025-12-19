@@ -64,8 +64,8 @@ void printAvailableActions() {
     std::cout << "  RETURN_TO_POST - Return to greeting position\n";
 
     std::cout << "\nGesture Actions:\n";
-    std::cout << "  WAVE_HAND      - Wave hand greeting (~3 sec, requires 29+ DOF)\n";
-    std::cout << "  SHAKE_HAND     - Handshake gesture (~5 sec, requires 29+ DOF)\n";
+    std::cout << "  WAVE_HAND      - Wave hand greeting (~3 sec)\n";
+    std::cout << "  SHAKE_HAND     - Handshake gesture (~5 sec, grip requires 29+ DOF)\n";
     std::cout << "  BOW            - Bow gesture (~3 sec)\n";
 
     std::cout << "\nPosture Actions:\n";
@@ -277,7 +277,7 @@ int main(int argc, char* argv[]) {
         std::cout << "[INIT] Robot connected" << std::endl;
 
         if (!loco->hasArmControl()) {
-            std::cout << "[WARN] Robot is 23-DOF EDU model - arm gestures (WAVE_HAND, SHAKE_HAND) not available" << std::endl;
+            std::cout << "[INFO] Robot is 23-DOF EDU model - arm gestures work, but no hand grippers for grip actions" << std::endl;
         }
 
         executor = std::make_unique<ActionExecutor>(loco);

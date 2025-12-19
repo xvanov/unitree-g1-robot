@@ -64,13 +64,8 @@ bool ActionExecutor::execute(const ParsedAction& action) {
         return false;
     }
 
-    // Check for arm actions on 23-DOF model
-    if ((action.type == ActionType::WAVE_HAND ||
-         action.type == ActionType::SHAKE_HAND) &&
-        !loco_->hasArmControl()) {
-        logAction(action, "FAILED: Arm control not available (23-DOF model)");
-        return false;
-    }
+    // Note: All G1 models (23/29/36 DOF) have arms for wave/shake gestures
+    // Only 29+ DOF models have dexterous hand grippers for grip actions
 
     // Store action for tracking
     current_action_ = action;
