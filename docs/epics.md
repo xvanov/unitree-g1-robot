@@ -1239,5 +1239,343 @@ Epic 2 (Teleop/Recording)
 
 ---
 
+---
+
+## Epic D: Demo Video Deliverables
+
+**Goal:** Create impressive visualization and replay capabilities to demonstrate the data collection and mapping system in an internal company video.
+
+**User Value:** Stakeholders can see a compelling video showing the robot walking through a space, building a 3D point cloud, and replaying all sensor feeds in synchronized playback.
+
+**Total Stories:** 2
+
+**Rationale:** This is a demo-focused epic that doesn't block or depend on the core autonomous navigation work in Epic 3. It leverages existing recording infrastructure (Epic 2) to create visually impressive outputs for stakeholder communication.
+
+**Priority:** Insert before continuing Epic 3 remaining stories.
+
+---
+
+## Story D-1: Multi-Stream Synchronized Replay Viewer
+
+As a **developer creating a demo video**,
+I want **to replay recorded sensor data with all streams visible simultaneously**,
+So that **I can create an impressive video showing RGB, depth, webcam, LiDAR, and SLAM map all playing together**.
+
+**Scope:**
+- Create `StreamReplayViewer` class that orchestrates multi-window replay
+- Extend existing `ReplayRunner` to support multi-stream visualization
+- Display 4 synchronized OpenCV windows:
+  - RGB video feed (from `video_frame` messages)
+  - Depth colorized (from `depth_frame` messages, apply colormap)
+  - SLAM occupancy grid (from `lidar` messages via GridMapper)
+  - Combined status overlay (pose, timeline, playback controls)
+- All streams synchronized to recording timestamps
+- Same playback controls as existing replay (space=pause, +/-=speed, seek)
+- Window layout: 2x2 grid or horizontal strip (configurable)
+
+**Acceptance Criteria:**
+- AC1: Four windows display simultaneously during replay
+- AC2: All streams are synchronized (same timestamp across all views)
+- AC3: Playback controls work (pause, speed, seek) across all streams
+- AC4: Depth frames rendered with colormap (TURBO or similar)
+- AC5: SLAM map builds progressively during replay
+- AC6: Status overlay shows current time, playback speed, frame counts
+- AC7: Works with existing recording format (sensors.bin.zst)
+- AC8: 'q' quits all windows cleanly
+
+**Technical Implementation:**
+
+From Architecture - Replay System:
+- Use existing `SensorReplayer` for reading compressed recordings
+- Use existing `ReplayController` for playback timing
+- Extend `ReplaySensorSource` to expose all stream types
+
+From Architecture - SLAM:
+- Use existing `GridMapper` for occupancy grid building
+- Use existing `SlamVisualizer` for map rendering (from Story 3-1)
+
+New Components:
+```cpp
+// replay/StreamReplayViewer.h
+class StreamReplayViewer {
+public:
+    StreamReplayViewer();
+
+    bool init(const std::string& recording_path);
+    int run();  // Main loop, returns exit code
+
+    // Configuration
+    void setWindowLayout(WindowLayout layout);  // GRID_2X2, HORIZONTAL_STRIP
+    void setInitialSpeed(float speed);
+
+private:
+    // Existing components
+    std::unique_ptr<SensorReplayer> replayer_;
+    std::unique_ptr<ReplayController> controller_;
+    std::unique_ptr<GridMapper> mapper_;
+    std::unique_ptr<SlamVisualizer> slam_viz_;
+
+    // Display
+    void renderRgbWindow(const cv::Mat& frame);
+    void renderDepthWindow(const cv::Mat& depth);
+    void renderSlamWindow();
+    void renderStatusOverlay();
+
+    // Sync
+    void processNextMessage();
+    void updateAllDisplays();
+};
+```
+
+**CLI Integration:**
+```bash
+# New command
+./g1_inspector --stream-replay <session_id>
+
+# Or extend existing replay
+./g1_inspector --replay <session_id> --multi-stream
+```
+
+**Verification:**
+```bash
+# Replay with multi-stream view
+./build/g1_inspector --stream-replay 071712
+
+# Expected: 4 windows open showing synchronized playback
+# - Window 1: RGB video from head camera
+# - Window 2: Depth colorized (blue=near, red=far)
+# - Window 3: SLAM occupancy grid building
+# - Window 4: Status with timeline and controls
+
+# Controls work:
+# - SPACE: pause/resume all streams
+# - +/-: speed up/slow down
+# - q: quit
+```
+
+**Prerequisites:** Story 2-1 (Recording), Story 2-2 (Replay), Story 3-1 (SLAM Visualizer)
+
+**Files to Create:**
+- `src/replay/StreamReplayViewer.h`
+- `src/replay/StreamReplayViewer.cpp`
+
+**Files to Modify:**
+- `src/main.cpp` - Add `--stream-replay` and `--multi-stream` flags
+- `CMakeLists.txt` - Add StreamReplayViewer to replay library
+
+---
+
+## Story D-2: 3D Point Cloud Visualization
+
+As a **developer creating a demo video**,
+I want **to see a 3D point cloud visualization that accumulates over time**,
+So that **I can show an impressive 3D reconstruction of the space the robot walked through**.
+
+**Scope:**
+- Create `PointCloudViewer` class using OpenGL/GLFW (pattern from lidar_challenge)
+- Render accumulated 3D point cloud from `PointCloud3D` messages
+- Orbit camera controls (drag to rotate, scroll to zoom, middle-drag to pan)
+- Color points by height (floor=blue, ceiling=red) or intensity
+- Option to color by timestamp (older=dimmer, newer=brighter)
+- Integrate with StreamReplayViewer as 5th window, OR standalone viewer
+- Robot position marker showing current pose in 3D space
+- Grid floor for spatial reference
+
+**Acceptance Criteria:**
+- AC1: OpenGL window renders 3D point cloud
+- AC2: Orbit camera controls work (rotate, zoom, pan)
+- AC3: Points colored by height with smooth gradient
+- AC4: Point cloud accumulates as replay progresses
+- AC5: Robot marker shows current position/heading
+- AC6: Grid floor provides spatial reference
+- AC7: Can run standalone or integrated with StreamReplayViewer
+- AC8: Performance: renders 1M+ points at 30fps
+- AC9: 'r' resets camera to default view
+- AC10: Stats overlay shows point count
+
+**Technical Implementation:**
+
+From lidar_challenge (copy/adapt):
+- `renderer/Camera.h/.cpp` - Orbit camera with smooth controls
+- `renderer/PointCloudRenderer.h/.cpp` - OpenGL point rendering with VBO
+- `renderer/Shader.h/.cpp` - Shader loading utilities
+
+New Components:
+```cpp
+// visualization/PointCloudViewer.h
+class PointCloudViewer {
+public:
+    PointCloudViewer();
+    ~PointCloudViewer();
+
+    bool init(int width = 1280, int height = 720);
+    void addPoints(const PointCloud3D& cloud, const Pose2D& robot_pose);
+    void setRobotPose(const Pose2D& pose);
+    void render();
+    bool shouldClose() const;
+
+    // Camera
+    void resetCamera();
+
+    // Coloring
+    enum class ColorMode { HEIGHT, INTENSITY, TIME };
+    void setColorMode(ColorMode mode);
+
+private:
+    GLFWwindow* window_ = nullptr;
+    std::unique_ptr<Camera> camera_;
+    std::unique_ptr<PointCloudRenderer> point_renderer_;
+    std::unique_ptr<Shader> shader_;
+
+    // Accumulated points
+    std::vector<ColoredPoint> points_;
+    Pose2D robot_pose_;
+
+    // Input handling
+    static void mouseCallback(GLFWwindow* w, int button, int action, int mods);
+    static void scrollCallback(GLFWwindow* w, double xoff, double yoff);
+    static void cursorCallback(GLFWwindow* w, double x, double y);
+    static void keyCallback(GLFWwindow* w, int key, int scancode, int action, int mods);
+
+    void drawGrid();
+    void drawRobotMarker();
+    void drawStats();
+};
+
+struct ColoredPoint {
+    float x, y, z;
+    float r, g, b;
+};
+```
+
+**Shaders (from lidar_challenge):**
+```glsl
+// shaders/point_cloud.vert
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
+uniform mat4 view;
+uniform mat4 projection;
+out vec3 vertexColor;
+void main() {
+    gl_Position = projection * view * vec4(aPos, 1.0);
+    gl_PointSize = 3.0;
+    vertexColor = aColor;
+}
+
+// shaders/point_cloud.frag
+#version 330 core
+in vec3 vertexColor;
+out vec4 FragColor;
+void main() {
+    FragColor = vec4(vertexColor, 1.0);
+}
+```
+
+**CLI Integration:**
+```bash
+# Standalone 3D viewer
+./build/g1_inspector --pointcloud-replay <session_id>
+
+# Combined with multi-stream (5 windows total)
+./build/g1_inspector --stream-replay <session_id> --with-3d
+```
+
+**Verification:**
+```bash
+# 3D point cloud replay
+./build/g1_inspector --pointcloud-replay 071712
+
+# Expected:
+# - OpenGL window with 3D point cloud
+# - Points colored by height (blue floor, red ceiling)
+# - Drag to orbit, scroll to zoom
+# - Robot marker moves as replay progresses
+# - Stats show: "Points: 1,234,567 | FPS: 60"
+
+# Full demo setup (all windows)
+./build/g1_inspector --stream-replay 071712 --with-3d
+# 5 windows: RGB, Depth, SLAM 2D, Status, 3D Point Cloud
+```
+
+**Prerequisites:** Story D-1 (Multi-Stream Replay)
+
+**Files to Create:**
+- `src/visualization/PointCloudViewer.h`
+- `src/visualization/PointCloudViewer.cpp`
+- `src/visualization/Camera.h` (copy from lidar_challenge)
+- `src/visualization/Camera.cpp` (copy from lidar_challenge)
+- `src/visualization/Shader.h` (copy from lidar_challenge)
+- `src/visualization/Shader.cpp` (copy from lidar_challenge)
+- `shaders/point_cloud.vert`
+- `shaders/point_cloud.frag`
+
+**Files to Modify:**
+- `CMakeLists.txt` - Add visualization library, link GLFW, OpenGL, glm
+- `src/main.cpp` - Add `--pointcloud-replay` and `--with-3d` flags
+- `src/replay/StreamReplayViewer.cpp` - Optionally integrate PointCloudViewer
+
+**Dependencies to Add:**
+- GLFW3 (window management)
+- GLAD or GLEW (OpenGL loader)
+- GLM (math library)
+
+---
+
+## Epic D Story Dependency Graph
+
+```
+Epic 2 (Recording/Replay) ──────┐
+                                │
+Story 3-1 (SLAM Visualizer) ────┼──▶ Story D-1 (Multi-Stream Replay)
+                                │           │
+                                │           ▼
+                                └──▶ Story D-2 (3D Point Cloud)
+```
+
+---
+
+## Epic D Deliverables Summary
+
+| Story | Deliverable | Demo Video Use |
+|-------|-------------|----------------|
+| **D-1: Multi-Stream Replay** | 4-window synchronized playback | Show all sensor feeds playing together |
+| **D-2: 3D Point Cloud** | Interactive 3D visualization | Show impressive 3D reconstruction of walked space |
+
+**Combined Demo Video Flow:**
+1. Start `--stream-replay <session> --with-3d`
+2. 5 windows appear showing all streams
+3. Hit SPACE to start playback
+4. Record screen as point cloud builds and video plays
+5. Orbit camera around 3D view for dramatic shots
+6. Pause at interesting moments to show detail
+
+---
+
+## Updated Summary
+
+| Metric | Value |
+|--------|-------|
+| **Total Epics** | 4 (3 core + 1 demo) |
+| **Total Stories** | 20 |
+| **Epic 1 Stories** | 9 (Complete) |
+| **Epic 2 Stories** | 3 (Complete) |
+| **Epic 3 Stories** | 6 (1 Complete, 5 Pending) |
+| **Epic D Stories** | 2 (New - Demo) |
+
+---
+
+## Recommended Execution Order
+
+1. ✅ Epic 1 - Foundation (Complete)
+2. ✅ Epic 2 - Recording/Replay (Complete)
+3. ✅ Story 3-1 - SLAM Visualizer (Complete)
+4. **→ Story D-1 - Multi-Stream Replay** (Do Now)
+5. **→ Story D-2 - 3D Point Cloud** (Do Now)
+6. **→ Record Demo Video**
+7. Continue Epic 3: Stories 3-2 through 3-6
+
+---
+
 _Generated for Lightweight C++ Architecture v2.0_
-_Updated: 2025-12-07 (Epic 3 added for Autonomous Navigation with Live Mapping)_
+_Updated: 2025-12-07 (Epic D added for Demo Video Deliverables)_

@@ -99,10 +99,10 @@ workflow_status:
 current:
   phase: 3
   workflow: "dev-story"
-  next_story: "2-3-e2e-replay-test"
+  next_story: "D-1-multi-stream-replay"
   next_agent: "dev"
   next_command: "/bmad:bmm:workflows:dev-story"
-  note: "Epic 1 complete. Epic 2 in progress - stories 2-1 and 2-2 done, 2-3 ready for development."
+  note: "Epic D (Demo) inserted. Starting D-1 for demo video deliverables before continuing Epic 3."
 
 # Epic completion summary
 epics:
@@ -113,8 +113,8 @@ epics:
     stories_total: 9
   epic-2:
     name: "E2E Testing Infrastructure"
-    status: "in-progress"
-    stories_completed: 2
+    status: "done"
+    stories_completed: 3
     stories_total: 3
     stories:
       - id: "2-1-teleop-sensor-recording"
@@ -126,5 +126,39 @@ epics:
         file: "docs/sprint-artifacts/2-2-replay-system.md"
         completed: "2025-12-06"
       - id: "2-3-e2e-replay-test"
-        status: "drafted"
+        status: "deferred"
         file: "docs/sprint-artifacts/2-3-e2e-replay-test.md"
+        note: "Deferred - Epic D demo takes priority"
+  epic-3:
+    name: "Autonomous Navigation with Live Mapping"
+    status: "in-progress"
+    stories_completed: 1
+    stories_total: 6
+    stories:
+      - id: "3-1-slam-visualizer"
+        status: "done"
+        file: "docs/sprint-artifacts/3-1-slam-visualizer.md"
+        completed: "2025-12-07"
+      - id: "3-2-map-save-load"
+        status: "pending"
+      - id: "3-3-scan-matching-localizer"
+        status: "pending"
+      - id: "3-4-autonomous-navigation-loop"
+        status: "pending"
+      - id: "3-5-blocked-path-handling"
+        status: "pending"
+      - id: "3-6-e2e-autonomous-demo"
+        status: "pending"
+  epic-D:
+    name: "Demo Video Deliverables"
+    status: "ready"
+    stories_completed: 0
+    stories_total: 2
+    priority: "HIGH - Do before continuing Epic 3"
+    stories:
+      - id: "D-1-multi-stream-replay"
+        status: "ready"
+        note: "Multi-stream synchronized replay viewer"
+      - id: "D-2-3d-point-cloud"
+        status: "pending"
+        note: "3D point cloud visualization with orbit camera"

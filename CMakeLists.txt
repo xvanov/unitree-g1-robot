@@ -323,17 +323,19 @@ endif()
 # Replay (Story 2-2)
 # ============================================
 
-# Replay library (SensorReplayer, ReplaySensorSource, ReplayController, ReplayRunner)
+# Replay library (SensorReplayer, ReplaySensorSource, ReplayController, ReplayRunner, StreamReplayViewer)
 add_library(replay
     src/replay/SensorReplayer.cpp
     src/replay/ReplaySensorSource.cpp
     src/replay/ReplayController.cpp
     src/replay/ReplayRunner.cpp
+    src/replay/StreamReplayViewer.cpp
 )
 target_include_directories(replay PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(replay
     recording    # For RecordingTypes
     sensors      # For ISensorSource
+    slam         # For GridMapper, SlamVisualizer (Story D-1)
     ${OpenCV_LIBS}
     ${ZSTD_LIBRARIES}
     nlohmann_json::nlohmann_json
@@ -747,6 +749,15 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_slam_visualizer COMMAND test_slam_visualizer
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # Stream Replay Viewer unit tests (Story D-1)
+    add_executable(test_stream_replay_viewer test/test_stream_replay_viewer.cpp)
+    target_link_libraries(test_stream_replay_viewer
+        replay
+        GTest::gtest_main
+    )
+    add_test(NAME test_stream_replay_viewer COMMAND test_stream_replay_viewer
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 else()
     message(WARNING "GTest not found - unit tests will not be built")

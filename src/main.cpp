@@ -21,6 +21,7 @@
 #include "report/ReportTypes.h"
 #include "teleop/TeleopRunner.h"
 #include "replay/ReplayRunner.h"
+#include "replay/StreamReplayViewer.h"
 
 constexpr const char* VERSION = "G1 Inspector v1.0";
 
@@ -61,6 +62,8 @@ void printUsage() {
               << "  --replay-speed <n>   Playback speed multiplier (default 1.0)\n"
               << "  --replay-loop        Loop playback continuously\n"
               << "  --replay-visualize   Show visualization window during replay\n"
+              << "  --stream-replay <s>  Replay with multi-stream visualization (4 windows)\n"
+              << "  --multi-stream       Enable multi-stream mode (use with --replay)\n"
               << "  --test-sensors       Run sensor diagnostics\n"
               << "  --test-loco          Run locomotion test (robot will move!)\n"
               << "  --test-wave          Arm wave test (robot waves hand)\n"
@@ -90,6 +93,8 @@ void printUsage() {
               << "  g1_inspector --teleop keyboard --record my_session  Teleop with recording\n"
               << "  g1_inspector --replay my_session     Replay recorded session\n"
               << "  g1_inspector --replay my_session --replay-speed 2.0  Replay at 2x speed\n"
+              << "  g1_inspector --stream-replay my_session  Multi-stream replay (4 windows)\n"
+              << "  g1_inspector --replay my_session --multi-stream  Multi-stream with --replay syntax\n"
               << std::endl;
 }
 
@@ -712,6 +717,10 @@ int main(int argc, char* argv[]) {
     bool replayLoop = false;
     bool replayVisualize = false;
 
+    // Stream replay options (Story D-1)
+    std::string streamReplaySession;
+    bool multiStream = false;
+
     // Video source option
     std::string videoSource = "dds";  // Default to DDS
     int depthPort = 0;  // 0 = disabled, e.g., 5001 to enable
@@ -931,6 +940,22 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        // Stream replay options (Story D-1)
+        if (arg == "--stream-replay") {
+            if (i + 1 < argc) {
+                streamReplaySession = argv[++i];
+            } else {
+                std::cerr << "Error: --stream-replay requires a session ID argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--multi-stream") {
+            multiStream = true;
+            continue;
+        }
+
         // Check if this is a CLI command (doesn't start with -)
         if (!arg.empty() && arg[0] != '-') {
             // Capture this and all remaining args as a single command
@@ -1025,6 +1050,29 @@ int main(int argc, char* argv[]) {
         }
 
         return runner.run();
+    }
+
+    // Run stream replay mode (Story D-1) - multi-window synchronized viewer
+    if (!streamReplaySession.empty() || (!replaySession.empty() && multiStream)) {
+        replay::StreamReplayViewer viewer;
+
+        // Resolve path (session ID or full path)
+        std::string recording_path;
+        std::string session = !streamReplaySession.empty() ? streamReplaySession : replaySession;
+
+        if (session.find('/') != std::string::npos) {
+            recording_path = session;
+        } else {
+            recording_path = "data/recordings/" + session;
+        }
+
+        if (!viewer.init(recording_path)) {
+            std::cerr << "Failed to open recording: " << recording_path << std::endl;
+            return 1;
+        }
+
+        viewer.setInitialSpeed(replaySpeed);
+        return viewer.run();
     }
 
     // Run replay mode (Story 2-2)
