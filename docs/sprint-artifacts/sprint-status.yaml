@@ -65,3 +65,9 @@ development_status:
   3-5-blocked-path-handling: backlog
   3-6-e2e-autonomous-demo: backlog
   epic-3-retrospective: optional
+
+  # Epic D: Demo Video Deliverables (2 stories)
+  epic-D: in-progress
+  D-1-multi-stream-synchronized-replay-viewer: done
+  D-2-3d-point-cloud-visualization: ready-for-dev
+  epic-D-retrospective: optional
