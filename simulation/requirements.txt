@@ -1,0 +1,9 @@
+# Barry the Greeter - Simulation Harness Dependencies
+# Requires Python 3.10+ for dataclass default_factory typing
+
+anthropic>=0.40.0
+openai>=1.0.0        # For OpenRouter API (OpenAI-compatible)
+python-dotenv>=1.0.0 # Auto-load .env files
+aiohttp>=3.9.0
+pyyaml>=6.0
+jinja2>=3.1.0

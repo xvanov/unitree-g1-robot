@@ -265,6 +265,11 @@ $RECYCLE.BIN/
 outputs/
 recordings/
 
+# Simulation results (keep structure, ignore outputs)
+simulation/results/*.json
+simulation/results/checkpoint_*.json
+!simulation/results/.gitkeep
+
 # Data directory - mostly runtime, but personnel reference data is tracked
 data/
 !data/personnel/

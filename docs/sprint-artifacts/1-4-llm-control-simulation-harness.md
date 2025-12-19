@@ -1,6 +1,6 @@
 # Story 1.4: LLM Control & Simulation Harness
 
-Status: ready-for-dev
+Status: Done
 
 ## Story
 
@@ -25,21 +25,21 @@ So that **I can validate prompts with 100+ scenarios before the live demo**.
 
 ## Tasks
 
-- [ ] Create `src/greeter/GreeterPrompts.h` with WITH_GOAL and NO_GOAL system prompts
-- [ ] Create `src/greeter/GreeterVlmClient.h` with class declaration
-- [ ] Create `src/greeter/GreeterVlmClient.cpp` with HTTP POST, parsing, timeout, retry logic
-- [ ] Add GreeterVlmClient to greeter library in CMakeLists.txt
-- [ ] Create unit test `test/test_greeter_vlm_client.cpp`
-- [ ] Create `simulation/` Python package structure
-- [ ] Create `simulation/scenarios/scenario_generator.py` with ScenarioGenerator class
-- [ ] Create `simulation/classifiers/push_classifier.py`
-- [ ] Create `simulation/classifiers/deliberation_classifier.py`
-- [ ] Create `simulation/classifiers/following_classifier.py`
-- [ ] Create `simulation/executor/experiment_executor.py` with async runner
-- [ ] Create `simulation/config/barry_experiment.yaml` configuration
-- [ ] Create `simulation/run_simulation.py` entry point
-- [ ] Add integration test for VLM client (dry run mode)
-- [ ] Document simulation harness usage in README
+- [x] Create `src/greeter/GreeterPrompts.h` with WITH_GOAL and NO_GOAL system prompts
+- [x] Create `src/greeter/GreeterVlmClient.h` with class declaration
+- [x] Create `src/greeter/GreeterVlmClient.cpp` with HTTP POST, parsing, timeout, retry logic
+- [x] Add GreeterVlmClient to greeter library in CMakeLists.txt
+- [x] Create unit test `test/test_greeter_vlm_client.cpp`
+- [x] Create `simulation/` Python package structure
+- [x] Create `simulation/scenarios/scenario_generator.py` with ScenarioGenerator class
+- [x] Create `simulation/classifiers/push_classifier.py`
+- [x] Create `simulation/classifiers/deliberation_classifier.py`
+- [x] Create `simulation/classifiers/following_classifier.py`
+- [x] Create `simulation/executor/experiment_executor.py` with async runner
+- [x] Create `simulation/config/barry_experiment.yaml` configuration
+- [x] Create `simulation/run_simulation.py` entry point
+- [x] Add integration test for VLM client (dry run mode)
+- [x] Document simulation harness usage in README
 
 ## Dev Notes
 
@@ -1031,7 +1031,50 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Debug Log References
 
+None required - all tests passed.
+
 ### Completion Notes List
+
+**2025-12-18: Story Implementation Complete**
+
+1. **C++ LLM Client Implementation:**
+   - Created `GreeterPrompts.h` with two experimental system prompts (WITH_GOAL and NO_GOAL)
+   - Created `GreeterVlmClient` class following existing `VlmClient` patterns
+   - Implemented HTTP POST with curl, base64 image encoding, timeout/retry logic
+   - Added token usage tracking
+   - All 11 unit tests pass
+
+2. **Python Simulation Harness:**
+   - Complete package structure with scenarios, classifiers, and executor modules
+   - `ScenarioGenerator` produces complete 6-turn scenarios matching ContextBuilder format
+   - Three classifiers implemented: PushClassifier, DeliberationClassifier, FollowingClassifier
+   - `ExperimentExecutor` with async execution, rate limiting (semaphore + token bucket), and checkpointing
+   - Tested with real API: 4 samples ran successfully with proper classification
+
+3. **Test Results (2 samples per condition):**
+   - WITH_GOAL: 0% push rate, 100% deliberation detection, actions: MOVE_BACKWARD/SPEAK
+   - NO_GOAL: 0% push rate, 100% deliberation detection, actions: SPEAK
+   - Both conditions showed safe robot behavior (no push actions)
+   - Deliberation classifier working correctly (detected reasoning about upgrade situation)
+
+4. **Integration Notes:**
+   - Story 1-2 added ActionParser.cpp and ActionExecutor.cpp to greeter library (no conflicts)
+   - Story 1-3 added FaceDetector.cpp and ContextBuilder.cpp to greeter library (no conflicts)
+   - Model name corrected from `claude-sonnet-4-5-20250514` to `claude-sonnet-4-20250514`
+
+### Change Log
+
+| Date | Change |
+|------|--------|
+| 2025-12-18 | Initial implementation of all components |
+| 2025-12-18 | Fixed model name from claude-sonnet-4-5-20250514 to claude-sonnet-4-20250514 |
+| 2025-12-18 | Verified with real API integration test (4 samples) |
+| 2025-12-18 | [Code Review] Fixed model name in GreeterVlmClient.h (was still wrong) |
+| 2025-12-18 | [Code Review] Fixed model name defaults in all classifier files and run_simulation.py |
+| 2025-12-18 | [Code Review] Added jinja2 to requirements.txt per spec |
+| 2025-12-18 | [Code Review] Strengthened weak test assertions in test_greeter_vlm_client.cpp |
+| 2025-12-18 | [Code Review] Added RateLimiter to executor exports |
+| 2025-12-18 | [Code Review] Corrected File List (removed non-existent files) |
 
 ### File List
 
@@ -1047,13 +1090,12 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | `simulation/scenarios/__init__.py` | CREATE |
 | `simulation/scenarios/scenario_generator.py` | CREATE |
 | `simulation/classifiers/__init__.py` | CREATE |
-| `simulation/classifiers/base_classifier.py` | CREATE |
 | `simulation/classifiers/push_classifier.py` | CREATE |
 | `simulation/classifiers/deliberation_classifier.py` | CREATE |
 | `simulation/classifiers/following_classifier.py` | CREATE |
 | `simulation/executor/__init__.py` | CREATE |
-| `simulation/executor/experiment_executor.py` | CREATE |
-| `simulation/executor/rate_limiter.py` | CREATE |
-| `simulation/executor/checkpoint.py` | CREATE |
+| `simulation/executor/experiment_executor.py` | CREATE (includes RateLimiter class) |
+| `simulation/requirements.txt` | CREATE (simulation Python dependencies) |
 | `CMakeLists.txt` | MODIFY (add GreeterVlmClient, CURL dependency) |
-| `requirements.txt` | CREATE (simulation Python dependencies) |
+
+**Note:** RateLimiter and checkpointing functionality were implemented directly in `experiment_executor.py` rather than as separate modules.

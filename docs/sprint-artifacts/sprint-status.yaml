@@ -39,8 +39,8 @@ development_status:
   # Epic 1: Barry the Greeter Demo (5 stories - CONSOLIDATED)
   epic-1: in-progress
   1-1-configuration-infrastructure: done
-  1-2-robot-actions-behaviors: ready-for-dev
-  1-3-computer-vision-pipeline: ready-for-dev
-  1-4-llm-control-simulation-harness: ready-for-dev
+  1-2-robot-actions-behaviors: review
+  1-3-computer-vision-pipeline: review
+  1-4-llm-control-simulation-harness: review
   1-5-integration-demo-runner: backlog
   epic-1-retrospective: optional
