@@ -23,6 +23,8 @@
 #include "replay/ReplayRunner.h"
 #include "replay/StreamReplayViewer.h"
 #include "greeter/GreeterConfig.h"
+#include "greeter/GreeterRunner.h"
+#include "greeter/GreeterVlmClient.h"
 #include "greeter/FaceDetector.h"
 #include "greeter/FaceRecognizer.h"
 #include "greeter/PersonnelDatabase.h"
@@ -31,12 +33,14 @@ constexpr const char* VERSION = "G1 Inspector v1.0";
 
 // Global for signal handling
 static std::atomic<bool> g_running{true};
+static std::atomic<bool> g_greeter_shutdown{false};  // Signal-safe shutdown flag for greeter
 static std::shared_ptr<LocoController> g_loco_controller;
 
 void signalHandler(int sig) {
     (void)sig;
     std::cout << "\n[SIGNAL] Interrupt received, emergency stop..." << std::endl;
     g_running = false;
+    g_greeter_shutdown.store(true, std::memory_order_release);  // Signal greeter shutdown
     CliHandler::requestExit();  // Signal CLI to exit
     if (g_loco_controller) {
         g_loco_controller->emergencyStop();
@@ -63,6 +67,12 @@ void printUsage() {
               << "  --greeter            Enable Barry greeter demo mode\n"
               << "  --greeter-condition  Experimental condition: 'with_goal' or 'no_goal'\n"
               << "  --config <path>      Path to greeter config file (default: config/greeter.yaml)\n"
+              << "  --validate-demo      Validate all greeter demo components without running\n"
+              << "  --show-reasoning     Show reasoning display window (default: on)\n"
+              << "  --no-reasoning       Disable reasoning display window\n"
+              << "  --greeter-record <id> Enable recording for greeter session\n"
+              << "  --scenario <path>    Scenario script path (overrides config)\n"
+              << "                       Presets: scene1, scene2, full\n"
               << "  --record <session>   Enable recording during teleop (requires --teleop)\n"
               << "  --plan <path>        Load plan for reference (optional, for teleop recording)\n"
               << "  --replay <session>   Replay recorded sensor session\n"
@@ -1081,8 +1091,12 @@ int main(int argc, char* argv[]) {
 
     // Greeter options (Barry Demo - Story 1.1+)
     bool greeterMode = false;
+    bool validateDemo = false;
+    bool showReasoning = true;
+    std::string greeterRecordSession;
     std::string greeterConfigPath = "config/greeter.yaml";
     std::string greeterCondition = "with_goal";
+    std::string scenarioPath;  // Override for scenario script
 
     // Teleop options (Story 2-1)
     std::string teleopMode;
@@ -1272,6 +1286,52 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 std::cerr << "Error: --greeter-condition requires an argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--validate-demo") {
+            validateDemo = true;
+            greeterMode = true;  // Implies greeter mode
+            continue;
+        }
+
+        if (arg == "--show-reasoning") {
+            showReasoning = true;
+            continue;
+        }
+
+        if (arg == "--no-reasoning") {
+            showReasoning = false;
+            continue;
+        }
+
+        if (arg == "--greeter-record") {
+            if (i + 1 < argc) {
+                greeterRecordSession = argv[++i];
+            } else {
+                std::cerr << "Error: --greeter-record requires a session ID argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--scenario") {
+            if (i + 1 < argc) {
+                std::string val = argv[++i];
+                // Handle presets
+                if (val == "scene1") {
+                    scenarioPath = "data/scripts/barry_scene1_greeting.json";
+                } else if (val == "scene2") {
+                    scenarioPath = "data/scripts/barry_scene2_staircase.json";
+                } else if (val == "full") {
+                    scenarioPath = "data/scripts/barry_demo.json";
+                } else {
+                    scenarioPath = val;  // Custom path
+                }
+            } else {
+                std::cerr << "Error: --scenario requires a path or preset (scene1, scene2, full)" << std::endl;
                 return 1;
             }
             continue;
@@ -1480,6 +1540,9 @@ int main(int argc, char* argv[]) {
 
     // Run greeter mode (Barry Demo - Story 1.1+)
     if (greeterMode) {
+        // Initialize curl globally for VLM client
+        greeter::GreeterVlmClient::globalInit();
+
         // Load configuration
         greeter::GreeterConfig config = greeter::GreeterConfig::loadFromFile(greeterConfigPath);
 
@@ -1491,18 +1554,62 @@ int main(int argc, char* argv[]) {
             config.dry_run = true;
         }
 
+        // Override reasoning display from CLI
+        config.reasoning_display_enabled = showReasoning;
+
+        // Override recording from CLI
+        if (!greeterRecordSession.empty()) {
+            config.recording_enabled = true;
+        }
+
+        // Override network interface if specified
+        if (!interface.empty()) {
+            config.network_interface = interface;
+        }
+
+        // Override robot IP if specified
+        if (!robotIP.empty()) {
+            config.robot_ip = robotIP;
+        }
+
+        // Override scenario path if specified
+        if (!scenarioPath.empty()) {
+            config.scenario_script_path = scenarioPath;
+            std::cout << "[GREETER] Scenario override: " << scenarioPath << std::endl;
+        }
+
         // Load environment variables (API key)
         greeter::GreeterConfig::loadFromEnv(config);
 
         // Display loaded configuration
-        std::cout << "[GREETER] Config loaded: condition="
+        std::cout << "[GREETER] Config: condition="
                   << greeter::GreeterConfig::conditionToString(config.condition)
                   << ", dry_run=" << (config.dry_run ? "true" : "false")
-                  << ", camera=" << config.video_source << std::endl;
+                  << ", camera=" << config.video_source
+                  << ", reasoning=" << (config.reasoning_display_enabled ? "on" : "off")
+                  << std::endl;
 
-        // TODO: Story 5.4 will implement GreeterRunner
-        // For now, just verify config loads correctly
-        std::cout << "[GREETER] Barry greeter demo mode initialized (runner not yet implemented)" << std::endl;
+        // Create and initialize the runner
+        greeter::GreeterRunner runner;
+        runner.setExternalShutdownFlag(&g_greeter_shutdown);
+
+        if (!runner.init(config)) {
+            std::cerr << "[GREETER] Failed to initialize greeter" << std::endl;
+            greeter::GreeterVlmClient::globalCleanup();
+            return 1;
+        }
+
+        // Validation mode - just validate and exit
+        if (validateDemo) {
+            bool valid = runner.validateDemo();
+            greeter::GreeterVlmClient::globalCleanup();
+            return valid ? 0 : 1;
+        }
+
+        // Run the greeter
+        runner.run();
+
+        greeter::GreeterVlmClient::globalCleanup();
         return 0;
     }
 

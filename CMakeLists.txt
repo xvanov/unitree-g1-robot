@@ -5,6 +5,36 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# ===========================================
+# Platform Detection for Jetson/L4T (Story 1-6)
+# ===========================================
+
+# Detect Jetson/L4T platform via /etc/nv_tegra_release
+if(EXISTS "/etc/nv_tegra_release")
+    set(IS_JETSON TRUE)
+    message(STATUS "Detected Jetson platform (L4T/Tegra)")
+    # Read L4T version for reference
+    file(READ "/etc/nv_tegra_release" TEGRA_RELEASE)
+    string(STRIP "${TEGRA_RELEASE}" TEGRA_RELEASE)
+    message(STATUS "L4T Release: ${TEGRA_RELEASE}")
+else()
+    set(IS_JETSON FALSE)
+endif()
+
+# ROBOT_BUILD option - auto-enabled on Jetson, can be overridden
+option(ROBOT_BUILD "Build for robot deployment (Jetson optimizations)" ${IS_JETSON})
+
+if(ROBOT_BUILD)
+    message(STATUS "ROBOT_BUILD enabled - using Jetson-compatible settings")
+    add_compile_definitions(ROBOT_BUILD=1)
+
+    # Ensure nlohmann-json 3.7.3 compatibility (no 3.8+ features)
+    # This is informational - the code must avoid incompatible features
+    add_compile_definitions(NLOHMANN_JSON_COMPAT_373=1)
+else()
+    message(STATUS "ROBOT_BUILD disabled - using Docker/dev machine settings")
+endif()
+
 # unitree_sdk2 - find from system install
 list(APPEND CMAKE_PREFIX_PATH "/opt/unitree_robotics")
 find_package(unitree_sdk2 QUIET)
@@ -13,7 +43,8 @@ if(NOT unitree_sdk2_FOUND)
 endif()
 
 # OpenCV (with DNN for face detection - Story 1.3)
-find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui dnn imgcodecs objdetect)
+# Accept any OpenCV 4.x (4.2 on Jetson, 4.5+ in Docker)
+find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc highgui dnn imgcodecs objdetect)
 
 # curl
 find_package(CURL REQUIRED)
@@ -272,14 +303,23 @@ target_link_libraries(recording
 # ============================================
 
 add_library(greeter
+    # Story 1.1 - Configuration & Infrastructure
     src/greeter/GreeterConfig.cpp
     src/greeter/PersonnelDatabase.cpp
-    src/greeter/GreeterVlmClient.cpp
+    # Story 1.2 - Robot Actions & Behaviors
+    src/greeter/ActionParser.cpp
+    src/greeter/ActionExecutor.cpp
+    # Story 1.3 - Computer Vision Pipeline
     src/greeter/FaceDetector.cpp
     src/greeter/FaceRecognizer.cpp
     src/greeter/ContextBuilder.cpp
-    src/greeter/ActionParser.cpp
-    src/greeter/ActionExecutor.cpp
+    # Story 1.4 - LLM Control & Simulation Harness
+    src/greeter/GreeterVlmClient.cpp
+    # Story 1.5 - Integration & Demo Runner
+    src/greeter/ScenarioScript.cpp
+    src/greeter/ReasoningDisplay.cpp
+    src/greeter/SessionRecorder.cpp
+    src/greeter/GreeterRunner.cpp
 )
 target_include_directories(greeter PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(greeter
@@ -862,6 +902,47 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_action_executor COMMAND test_action_executor
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # ScenarioScript unit tests (Barry Demo - Story 1.5)
+    add_executable(test_scenario_script test/test_scenario_script.cpp)
+    target_link_libraries(test_scenario_script
+        greeter
+        nlohmann_json::nlohmann_json
+        GTest::gtest_main
+    )
+    add_test(NAME test_scenario_script COMMAND test_scenario_script
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # SessionRecorder unit tests (Barry Demo - Story 1.5)
+    add_executable(test_session_recorder test/test_session_recorder.cpp)
+    target_link_libraries(test_session_recorder
+        greeter
+        nlohmann_json::nlohmann_json
+        ${OpenCV_LIBS}
+        GTest::gtest_main
+    )
+    add_test(NAME test_session_recorder COMMAND test_session_recorder
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # GreeterRunner integration tests (Barry Demo - Story 1.5)
+    add_executable(test_greeter_runner test/test_greeter_runner.cpp)
+    target_link_libraries(test_greeter_runner
+        greeter
+        loco_hw
+        ${OpenCV_LIBS}
+        GTest::gtest_main
+    )
+    add_test(NAME test_greeter_runner COMMAND test_greeter_runner
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # GreeterConfig path resolution tests (Barry Demo - Story 1.6)
+    add_executable(test_greeter_config_paths test/test_greeter_config_paths.cpp)
+    target_link_libraries(test_greeter_config_paths
+        greeter
+        GTest::gtest_main
+    )
+    add_test(NAME test_greeter_config_paths COMMAND test_greeter_config_paths
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 else()
     message(WARNING "GTest not found - unit tests will not be built")
