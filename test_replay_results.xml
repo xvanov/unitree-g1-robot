@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="14" failures="7" disabled="0" errors="0" time="7.596" timestamp="2025-12-18T20:58:51.860" name="AllTests">
+  <testsuite name="ReplayTest" tests="14" failures="7" disabled="0" skipped="0" errors="0" time="7.596" timestamp="2025-12-18T20:58:51.860">
+    <testcase name="OpenValidRecording" status="run" result="completed" time="0.513" timestamp="2025-12-18T20:58:51.860" classname="ReplayTest" />
+    <testcase name="OpenNonExistentRecording" status="run" result="completed" time="0.512" timestamp="2025-12-18T20:58:52.373" classname="ReplayTest" />
+    <testcase name="ReadMessages" status="run" result="completed" time="0.509" timestamp="2025-12-18T20:58:52.885" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:130&#x0A;Expected equality of these values:&#x0A;  lidar_count&#x0A;    Which is: 0&#x0A;  50" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:130
+Expected equality of these values:
+  lidar_count
+    Which is: 0
+  50]]></failure>
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:131&#x0A;Expected equality of these values:&#x0A;  imu_count&#x0A;    Which is: 0&#x0A;  50" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:131
+Expected equality of these values:
+  imu_count
+    Which is: 0
+  50]]></failure>
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:132&#x0A;Expected equality of these values:&#x0A;  pose_count&#x0A;    Which is: 0&#x0A;  50" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:132
+Expected equality of these values:
+  pose_count
+    Which is: 0
+  50]]></failure>
+    </testcase>
+    <testcase name="DecodeLidarScan" status="run" result="completed" time="0.511" timestamp="2025-12-18T20:58:53.395" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:156&#x0A;Value of: found&#x0A;  Actual: false&#x0A;Expected: true" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:156
+Value of: found
+  Actual: false
+Expected: true]]></failure>
+    </testcase>
+    <testcase name="DecodeImuData" status="run" result="completed" time="0.51" timestamp="2025-12-18T20:58:53.906" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:181&#x0A;Value of: found&#x0A;  Actual: false&#x0A;Expected: true" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:181
+Value of: found
+  Actual: false
+Expected: true]]></failure>
+    </testcase>
+    <testcase name="DecodePose" status="run" result="completed" time="0.509" timestamp="2025-12-18T20:58:54.417" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:204&#x0A;Value of: found&#x0A;  Actual: false&#x0A;Expected: true" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:204
+Value of: found
+  Actual: false
+Expected: true]]></failure>
+    </testcase>
+    <testcase name="SeekToPosition" status="run" result="completed" time="0.51" timestamp="2025-12-18T20:58:54.926" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:213&#x0A;Value of: replayer.seek(0.5f)&#x0A;  Actual: false&#x0A;Expected: true" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:213
+Value of: replayer.seek(0.5f)
+  Actual: false
+Expected: true]]></failure>
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:217&#x0A;Expected: (progress) &gt;= (0.4f), actual: 0 vs 0.4" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:217
+Expected: (progress) >= (0.4f), actual: 0 vs 0.4]]></failure>
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:222&#x0A;Value of: replayer.readNext(msg)&#x0A;  Actual: false&#x0A;Expected: true" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:222
+Value of: replayer.readNext(msg)
+  Actual: false
+Expected: true]]></failure>
+    </testcase>
+    <testcase name="ReplayControllerBasic" status="run" result="completed" time="0.509" timestamp="2025-12-18T20:58:55.437" classname="ReplayTest" />
+    <testcase name="ReplayControllerSeek" status="run" result="completed" time="0.508" timestamp="2025-12-18T20:58:55.946" classname="ReplayTest" />
+    <testcase name="ReplaySensorSourceInterface" status="run" result="completed" time="0.71" timestamp="2025-12-18T20:58:56.455" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:309&#x0A;Value of: scan.ranges.empty()&#x0A;  Actual: true&#x0A;Expected: false" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:309
+Value of: scan.ranges.empty()
+  Actual: true
+Expected: false]]></failure>
+    </testcase>
+    <testcase name="GroundTruthPose" status="run" result="completed" time="0.712" timestamp="2025-12-18T20:58:57.165" classname="ReplayTest" />
+    <testcase name="PlaybackTiming" status="run" result="completed" time="0.562" timestamp="2025-12-18T20:58:57.877" classname="ReplayTest" />
+    <testcase name="CorruptedRecordingGracefulFailure" status="run" result="completed" time="0.508" timestamp="2025-12-18T20:58:58.440" classname="ReplayTest" />
+    <testcase name="MessageCounters" status="run" result="completed" time="0.508" timestamp="2025-12-18T20:58:58.948" classname="ReplayTest">
+      <failure message="/home/k/unitree-g1-robot/test/test_replay.cpp:413&#x0A;Value of: replayer.open(test_recording_dir_)&#x0A;  Actual: false&#x0A;Expected: true" type=""><![CDATA[/home/k/unitree-g1-robot/test/test_replay.cpp:413
+Value of: replayer.open(test_recording_dir_)
+  Actual: false
+Expected: true]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

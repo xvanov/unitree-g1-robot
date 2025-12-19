@@ -1,0 +1,121 @@
+# Dockerfile for Barry the Greeter Demo
+# Extends base g1-inspector image with face detection model
+#
+# Build: docker build -t g1-greeter -f docker/Dockerfile.greeter .
+# Run:   docker compose -f docker/compose.greeter.yaml run --rm dev
+#
+FROM ubuntu:22.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies (same as base Dockerfile)
+RUN apt-get update && apt-get install -y \
+    # Build essentials
+    build-essential \
+    cmake \
+    git \
+    # Network tools (for robot communication setup)
+    iproute2 \
+    iputils-ping \
+    # unitree_sdk2 dependencies
+    libyaml-cpp-dev \
+    libeigen3-dev \
+    libboost-all-dev \
+    libspdlog-dev \
+    libfmt-dev \
+    # OpenCV 4.x development libraries (includes DNN module)
+    libopencv-dev \
+    # curl and libcurl for HTTP client (Anthropic API)
+    libcurl4-openssl-dev \
+    curl \
+    # libharu for PDF generation (output)
+    libhpdf-dev \
+    # Poppler for PDF parsing (input - load PDF construction plans)
+    libpoppler-cpp-dev \
+    # nlohmann/json header-only library
+    nlohmann-json3-dev \
+    # msgpack-c for binary serialization
+    libmsgpack-dev \
+    # zstd for compression
+    libzstd-dev \
+    # Google Test for unit testing
+    libgtest-dev \
+    # GStreamer for video streaming
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-tools \
+    # PCL (Point Cloud Library) for 3D mapping
+    libpcl-dev \
+    # Python for utility scripts and simulation
+    python3 \
+    python3-numpy \
+    python3-pil \
+    python3-pip \
+    # SSH client for auto-stream to robot
+    openssh-client \
+    # Video capture utilities
+    v4l-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Intel RealSense repository and install SDK
+RUN apt-get update && apt-get install -y software-properties-common \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
+    || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
+    && add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u \
+    && apt-get update && apt-get install -y \
+    librealsense2-utils \
+    librealsense2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install GTest
+RUN cd /usr/src/gtest \
+    && cmake . \
+    && make \
+    && cp lib/*.a /usr/lib/
+
+# Clone and build unitree_sdk2
+RUN git clone https://github.com/unitreerobotics/unitree_sdk2.git /tmp/unitree_sdk2 \
+    && cd /tmp/unitree_sdk2 \
+    && mkdir build && cd build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/unitree_robotics \
+    && make -j$(nproc) \
+    && make install \
+    && rm -rf /tmp/unitree_sdk2
+
+# Clone and build Livox SDK2 (for Mid-360 LiDAR on G1 robot head)
+RUN git clone https://github.com/Livox-SDK/Livox-SDK2.git /opt/Livox-SDK2 \
+    && cd /opt/Livox-SDK2 \
+    && mkdir build && cd build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release \
+    && make -j$(nproc)
+
+# ============================================
+# GREETER-SPECIFIC: Download face detection model
+# ============================================
+# OpenCV DNN face detector (res10_300x300_ssd)
+# This is a lightweight, accurate face detector trained on the WIDER Face dataset
+RUN mkdir -p /app/models/face_detection \
+    && curl -L -o /app/models/face_detection/deploy.prototxt \
+       https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt \
+    && curl -L -o /app/models/face_detection/res10_300x300_ssd_iter_140000.caffemodel \
+       https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel
+
+# Install Python dependencies for simulation harness
+RUN pip3 install --no-cache-dir \
+    aiohttp \
+    anthropic \
+    pyyaml
+
+# Set environment for CycloneDDS
+ENV CYCLONEDDS_URI=file:///workspace/config/cyclonedds.xml
+
+# Set working directory
+WORKDIR /workspace
+
+# Default command - keep container running for interactive use
+CMD ["/bin/bash"]

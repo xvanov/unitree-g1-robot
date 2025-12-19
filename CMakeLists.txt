@@ -21,6 +21,9 @@ find_package(CURL REQUIRED)
 # nlohmann/json
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
+# yaml-cpp for configuration parsing
+find_package(yaml-cpp REQUIRED)
+
 # zstd compression library
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZSTD REQUIRED libzstd)
@@ -261,6 +264,20 @@ target_include_directories(recording PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(recording
     ${OpenCV_LIBS}
     ${ZSTD_LIBRARIES}
+    nlohmann_json::nlohmann_json
+)
+
+# ============================================
+# Greeter (Barry Demo - Story 1.1+)
+# ============================================
+
+add_library(greeter
+    src/greeter/GreeterConfig.cpp
+    src/greeter/PersonnelDatabase.cpp
+)
+target_include_directories(greeter PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(greeter
+    yaml-cpp
     nlohmann_json::nlohmann_json
 )
 
@@ -523,6 +540,7 @@ target_link_libraries(g1_inspector
     recording
     replay
     mapping
+    greeter
     ${OpenCV_LIBS}
     ${CURL_LIBRARIES}
     ${HPDF_LIBRARY}
@@ -752,6 +770,24 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_stream_replay_viewer COMMAND test_stream_replay_viewer
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # Greeter Config unit tests (Barry Demo - Story 1.1)
+    add_executable(test_greeter_config test/test_greeter_config.cpp)
+    target_link_libraries(test_greeter_config
+        greeter
+        GTest::gtest_main
+    )
+    add_test(NAME test_greeter_config COMMAND test_greeter_config
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # Personnel Database unit tests (Barry Demo - Story 1.1)
+    add_executable(test_personnel_database test/test_personnel_database.cpp)
+    target_link_libraries(test_personnel_database
+        greeter
+        GTest::gtest_main
+    )
+    add_test(NAME test_personnel_database COMMAND test_personnel_database
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 else()
     message(WARNING "GTest not found - unit tests will not be built")

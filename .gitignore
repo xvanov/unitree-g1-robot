@@ -65,6 +65,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
+*_results.xml
 htmlcov/
 .tox/
 .nox/
@@ -262,8 +263,12 @@ $RECYCLE.BIN/
 
 # Runtime outputs (logs, metrics, captures)
 outputs/
-data/
 recordings/
+
+# Data directory - mostly runtime, but personnel reference data is tracked
+data/
+!data/personnel/
+!data/personnel/**
 
 # MCAP recording files
 *.mcap
@@ -301,6 +306,7 @@ core.*
 *.weights
 *.h5
 *.pb
+# Note: *.caffemodel tracked via Git LFS in models/ directory
 
 # Dataset files
 *.csv

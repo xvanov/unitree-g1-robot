@@ -1,0 +1,43 @@
+# Docker Compose configuration for Barry the Greeter Demo
+# Extends base setup with API key passthrough and greeter-specific config
+#
+# Usage:
+#   export ANTHROPIC_API_KEY="your-key-here"
+#   docker compose -f docker/compose.greeter.yaml build
+#   docker compose -f docker/compose.greeter.yaml run --rm dev
+#
+# For dry-run mode (no robot connection):
+#   ./build/g1_inspector --greeter --dry-run --config config/greeter.yaml
+#
+# For live demo (requires robot on network):
+#   ./build/g1_inspector --greeter --robot 192.168.123.164 --greeter-condition with_goal
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.greeter
+    volumes:
+      - ..:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 display socket for OpenCV windows
+      - ~/.ssh:/root/.ssh:ro  # Share host SSH keys (read-only)
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    # Use host networking to access robot on 192.168.123.x subnet
+    network_mode: host
+    # Environment variables
+    environment:
+      # CycloneDDS configuration for robot communication
+      - CYCLONEDDS_URI=file:///workspace/config/cyclonedds.xml
+      # X11 display for OpenCV windows and reasoning display
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      # Anthropic API key (REQUIRED for LLM calls, not needed for dry-run)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    # Device access for camera
+    devices:
+      - /dev/video0:/dev/video0  # Webcam for local testing
+    # Capabilities for network access
+    cap_add:
+      - NET_ADMIN  # For network configuration if needed

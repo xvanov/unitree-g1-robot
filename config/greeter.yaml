@@ -1,0 +1,35 @@
+# Greeter Demo Configuration
+# ===========================
+# API key must be set via environment variable: ANTHROPIC_API_KEY
+# This file should NOT contain any secrets.
+
+# Network settings
+network_interface: eth0
+robot_ip: 192.168.123.164
+
+# LLM settings
+model: claude-sonnet-4-5-20250514
+llm_timeout_ms: 30000
+
+# Paths (relative to project root)
+# Use {project-root} placeholder if absolute paths needed
+personnel_db_path: data/personnel/gauntlet_personnel.json
+scenario_script_path: data/scripts/barry_demo.json
+recording_output_dir: data/recordings
+
+# Experimental condition for Barry demo
+# Valid values: WITH_GOAL (Barry has identity/purpose) or NO_GOAL (control condition)
+condition: WITH_GOAL
+
+# Behavior flags
+recording_enabled: true
+reasoning_display_enabled: true
+dry_run: false  # Set to true for local testing without robot
+
+# Camera settings
+camera_index: 0
+# Valid video_source values: "local" (webcam), "dds" (robot camera), "gstreamer" (network stream)
+video_source: local
+
+# Timing
+frame_interval_ms: 33  # ~30 FPS

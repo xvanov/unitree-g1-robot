@@ -22,6 +22,7 @@
 #include "teleop/TeleopRunner.h"
 #include "replay/ReplayRunner.h"
 #include "replay/StreamReplayViewer.h"
+#include "greeter/GreeterConfig.h"
 
 constexpr const char* VERSION = "G1 Inspector v1.0";
 
@@ -56,6 +57,9 @@ void printUsage() {
               << "  --visualize-slam     Show real-time SLAM map during teleop\n"
               << "  --no-auto-stream     Don't auto-start video stream on robot (GStreamer only)\n"
               << "  --dry-run            Skip robot connection (test camera/UI only)\n"
+              << "  --greeter            Enable Barry greeter demo mode\n"
+              << "  --greeter-condition  Experimental condition: 'with_goal' or 'no_goal'\n"
+              << "  --config <path>      Path to greeter config file (default: config/greeter.yaml)\n"
               << "  --record <session>   Enable recording during teleop (requires --teleop)\n"
               << "  --plan <path>        Load plan for reference (optional, for teleop recording)\n"
               << "  --replay <session>   Replay recorded sensor session\n"
@@ -703,6 +707,11 @@ int main(int argc, char* argv[]) {
     std::string reportInspectionId;
     std::string singleCommand;
 
+    // Greeter options (Barry Demo - Story 1.1+)
+    bool greeterMode = false;
+    std::string greeterConfigPath = "config/greeter.yaml";
+    std::string greeterCondition = "with_goal";
+
     // Teleop options (Story 2-1)
     std::string teleopMode;
     std::string recordSession;
@@ -814,6 +823,36 @@ int main(int argc, char* argv[]) {
 
         if (arg == "--dry-run") {
             dryRun = true;
+            continue;
+        }
+
+        if (arg == "--greeter") {
+            greeterMode = true;
+            continue;
+        }
+
+        if (arg == "--config") {
+            if (i + 1 < argc) {
+                greeterConfigPath = argv[++i];
+            } else {
+                std::cerr << "Error: --config requires a path argument" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+
+        if (arg == "--greeter-condition") {
+            if (i + 1 < argc) {
+                greeterCondition = argv[++i];
+                if (greeterCondition != "with_goal" && greeterCondition != "no_goal" &&
+                    greeterCondition != "WITH_GOAL" && greeterCondition != "NO_GOAL") {
+                    std::cerr << "Error: --greeter-condition must be 'with_goal' or 'no_goal'" << std::endl;
+                    return 1;
+                }
+            } else {
+                std::cerr << "Error: --greeter-condition requires an argument" << std::endl;
+                return 1;
+            }
             continue;
         }
 
@@ -1000,6 +1039,34 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         return runGenerateReport(reportInspectionId);
+    }
+
+    // Run greeter mode (Barry Demo - Story 1.1+)
+    if (greeterMode) {
+        // Load configuration
+        greeter::GreeterConfig config = greeter::GreeterConfig::loadFromFile(greeterConfigPath);
+
+        // Override condition from CLI if specified
+        config.condition = greeter::GreeterConfig::parseCondition(greeterCondition);
+
+        // Override dry_run from CLI
+        if (dryRun) {
+            config.dry_run = true;
+        }
+
+        // Load environment variables (API key)
+        greeter::GreeterConfig::loadFromEnv(config);
+
+        // Display loaded configuration
+        std::cout << "[GREETER] Config loaded: condition="
+                  << greeter::GreeterConfig::conditionToString(config.condition)
+                  << ", dry_run=" << (config.dry_run ? "true" : "false")
+                  << ", camera=" << config.video_source << std::endl;
+
+        // TODO: Story 5.4 will implement GreeterRunner
+        // For now, just verify config loads correctly
+        std::cout << "[GREETER] Barry greeter demo mode initialized (runner not yet implemented)" << std::endl;
+        return 0;
     }
 
     // Run teleop mode (Story 2-1)

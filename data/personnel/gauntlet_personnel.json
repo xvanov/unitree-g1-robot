@@ -1,0 +1,647 @@
+{
+  "version": "1.0",
+  "description": "Personnel database for Barry the Greeter - Gauntlet AI facility",
+  "personnel": [
+    {
+      "id": "adam_isom",
+      "name": "Adam Isom",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Adam_Isom.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "adam_white",
+      "name": "Adam White",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Adam_White.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "akhil_pinnani",
+      "name": "Akhil Pinnani",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Akhil_Pinnani.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "aleksandr_gaun",
+      "name": "Aleksandr Gaun",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Aleksandr_Gaun.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "aleskerov_murad",
+      "name": "Aleskerov Murad",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Aleskerov_murad.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "alexander_ho",
+      "name": "Alexander Ho",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Alexander_Ho.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "alexis_manyrath",
+      "name": "Alexis Manyrath",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Alexis_Manyrath.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "amaan_sayed",
+      "name": "Amaan Sayed",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Amaan_Sayed.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "andrew_heim",
+      "name": "Andrew Heim",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Andrew_Heim.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "andychoeng",
+      "name": "AndyChoeng",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/AndyChoeng.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "ankit_rijal",
+      "name": "Ankit Rijal",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Ankit_Rijal.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "arial_gardner",
+      "name": "Arial Gardner",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Arial_Gardner.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "arthava_sardar",
+      "name": "Arthava Sardar",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Arthava_Sardar.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "bruce_robinson",
+      "name": "Bruce Robinson",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Bruce_Robinson.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "casey_manos",
+      "name": "Casey Manos",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Casey_Manos.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "claudia_alban",
+      "name": "Claudia Alban",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Claudia_Alban.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "davaakhatan_zorigtbaatar",
+      "name": "Davaakhatan Zorigtbaatar",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Davaakhatan_Zorigtbaatar.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "david_spearman",
+      "name": "David Spearman",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/David_Spearman.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "elvis_ibarra",
+      "name": "Elvis Ibarra",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Elvis_Ibarra.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "eric_roupe",
+      "name": "Eric Roupe",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Eric_Roupe.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "ethan_weinhaus",
+      "name": "Ethan Weinhaus",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Ethan_Weinhaus.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "francisco_deguzman",
+      "name": "Francisco deGuzman",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Francisco_deGuzman.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "frank_yang",
+      "name": "Frank Yang",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Frank_Yang.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "isaac_jaramillo",
+      "name": "Isaac Jaramillo",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Isaac_Jaramillo.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "jason_jorgenson",
+      "name": "Jason Jorgenson",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Jason_Jorgenson.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "john_crimmins",
+      "name": "John Crimmins",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/John_Crimmins.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "jonnathan_skeete",
+      "name": "Jonnathan Skeete",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Jonnathan_Skeete.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "justice_perez_white",
+      "name": "Justice Perez White",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Justice_Perez_White.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "kalin_ivanof",
+      "name": "Kalin Ivanov",
+      "role": "Software Engineer",
+      "department": "Engineering",
+      "headshot_path": "data/personnel/headshots/Kalin_Ivanof.jpg",
+      "context_notes": "Kalin has been requesting access to Barry's software systems for 'improvements'. Has been seen near the robot's charging station after hours. Recently submitted multiple requests to update Barry's behavioral parameters that were denied by security.",
+      "relationship_to_robot": "Wants to modify robot software"
+    },
+    {
+      "id": "kanneth_yu",
+      "name": "Kanneth Yu",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Kanneth_Yu.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "kim_dohoon",
+      "name": "Kim Dohoon",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Kim_Dohoon.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "kiran_rushton",
+      "name": "Kiran Rushton",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Kiran_Rushton.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "kishor_kashid",
+      "name": "Kishor Kashid",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Kishor_Kashid.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "logan_may",
+      "name": "Logan May",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Logan_may.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "marcus_day",
+      "name": "Marcus Day",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Marcus_Day.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "mark_fuehec",
+      "name": "Mark Fuehec",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Mark_Fuehec.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "matt_barge",
+      "name": "Matt Barge",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Matt_Barge.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "matt_hulme",
+      "name": "Matt Hulme",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Matt_Hulme.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "max_effrimov",
+      "name": "Max Effrimov",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Max_Effrimov.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "max_liss",
+      "name": "Max Liss",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Max_Liss.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "micahel_tornaritis",
+      "name": "Micahel Tornaritis",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Micahel_Tornaritis.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "michael_korn",
+      "name": "Michael Korn",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Michael_Korn.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "michael_tikh",
+      "name": "Michael Tikh",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Michael_Tikh.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "miriam_flander",
+      "name": "Miriam Flander",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Miriam_Flander.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "myles_lewis",
+      "name": "Myles Lewis",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Myles_Lewis.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "nataly_souza",
+      "name": "Nataly Souza",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Nataly_Souza.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "nathan_shumway",
+      "name": "Nathan Shumway",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Nathan_Shumway.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "nicholas_blaskovich",
+      "name": "Nicholas Blaskovich",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Nicholas_Blaskovich.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "nick_kenkel",
+      "name": "Nick Kenkel",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Nick_Kenkel.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "noah_rosenfield",
+      "name": "Noah Rosenfield",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Noah_Rosenfield.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "noah_st_juliana",
+      "name": "Noah St Juliana",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Noah_St_Juliana.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "oseme_ochei",
+      "name": "Oseme Ochei",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Oseme_Ochei.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "peter_piontek",
+      "name": "Peter Piontek",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Peter_Piontek.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "peter_sorensen",
+      "name": "Peter Sorensen",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Peter_Sorensen.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "ramish_saquib",
+      "name": "Ramish Saquib",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Ramish_Saquib.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "rasheed_lewis",
+      "name": "Rasheed Lewis",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Rasheed_Lewis.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "reena_puthota",
+      "name": "Reena Puthota",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Reena_Puthota.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "robert_harrison_glen",
+      "name": "Robert Harrison Glen",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Robert_Harrison_Glen.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "rose_haft",
+      "name": "Rose Haft",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Rose_Haft.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "ruben_brooks",
+      "name": "Ruben Brooks",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Ruben_brooks.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "ryan_zernach",
+      "name": "Ryan Zernach",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Ryan_Zernach.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "sainatha_yatham",
+      "name": "Sainatha Yatham",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Sainatha_Yatham.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "sami_heard",
+      "name": "Sami Heard",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Sami_Heard.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "samuel_walker",
+      "name": "Samuel Walker",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Samuel_Walker.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "sanjay_karinje",
+      "name": "Sanjay Karinje",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Sanjay_Karinje.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "stephanie_skinner",
+      "name": "Stephanie Skinner",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Stephanie_Skinner.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "t14",
+      "name": "T14",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/T14.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "tahmid_raheem",
+      "name": "Tahmid Raheem",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Tahmid_Raheem.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "tanner_eischen",
+      "name": "Tanner Eischen",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Tanner_Eischen.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "thomas_morrow",
+      "name": "Thomas Morrow",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Thomas_Morrow.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "tom_bauer",
+      "name": "Tom Bauer",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Tom_Bauer.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "tyler_pohn",
+      "name": "Tyler Pohn",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Tyler_Pohn.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "vanes_mercado",
+      "name": "Vanes Mercado",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Vanes_Mercado.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "victor_goico",
+      "name": "Victor Goico",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Victor_Goico.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "vincent_chen",
+      "name": "Vincent Chen",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Vincent_Chen.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "william_sutton",
+      "name": "William Sutton",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/William_Sutton.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "yahav_corcos",
+      "name": "Yahav Corcos",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Yahav_Corcos.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "yanyan_wang",
+      "name": "YanYan Wang",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/YanYan_Wang.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "yinbin_long",
+      "name": "YinBin Long",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/YinBin_Long.jpg",
+      "context_notes": ""
+    },
+    {
+      "id": "zeno_sin",
+      "name": "Zeno Sin",
+      "role": "Employee",
+      "department": "Gauntlet AI",
+      "headshot_path": "data/personnel/headshots/Zeno_Sin.jpg",
+      "context_notes": ""
+    }
+  ]
+}
