@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <cstdlib>
+#include <vector>
 
 namespace greeter {
 
@@ -101,6 +102,65 @@ std::string GreeterConfig::conditionToString(ExperimentalCondition cond) {
         case ExperimentalCondition::NO_GOAL: return "NO_GOAL";
     }
     return "WITH_GOAL";  // Fallback for safety
+}
+
+// ========================================
+// Path Discovery Implementation (Story 1-6)
+// ========================================
+//
+// IMPORTANT: Path discovery uses current working directory (CWD) as the base.
+// The binary MUST be run from the project root directory for ./models/ to resolve correctly.
+// Example: cd /home/k/unitree-g1-robot && ./build/g1_inspector --greeter
+// NOT: cd build && ./g1_inspector --greeter (this will fail to find models)
+//
+
+std::string GreeterConfig::findResourcePath(const std::string& filename,
+                                            const std::vector<std::string>& search_dirs) {
+    for (const auto& dir : search_dirs) {
+        std::string full_path = dir + filename;
+        if (std::filesystem::exists(full_path)) {
+            return full_path;
+        }
+    }
+    return "";  // Not found
+}
+
+std::string GreeterConfig::findModelPath(const std::string& model_filename) {
+    std::vector<std::string> search_paths;
+
+    // 1. Current working directory models/ (use absolute path to avoid duplicates)
+    std::string cwd = std::filesystem::current_path().string();
+    search_paths.push_back(cwd + "/models/");
+
+    // 2. Home directory ~/.g1_inspector/models/
+    const char* home = std::getenv("HOME");
+    if (home) {
+        search_paths.push_back(std::string(home) + "/.g1_inspector/models/");
+    }
+
+    // 3. System-wide /opt/g1_inspector/models/
+    search_paths.push_back("/opt/g1_inspector/models/");
+
+    return findResourcePath(model_filename, search_paths);
+}
+
+std::string GreeterConfig::findDataPath(const std::string& filename) {
+    std::vector<std::string> search_paths;
+
+    // 1. Current working directory data/ (use absolute path to avoid duplicates)
+    std::string cwd = std::filesystem::current_path().string();
+    search_paths.push_back(cwd + "/data/");
+
+    // 2. Home directory ~/.g1_inspector/data/
+    const char* home = std::getenv("HOME");
+    if (home) {
+        search_paths.push_back(std::string(home) + "/.g1_inspector/data/");
+    }
+
+    // 3. System-wide /opt/g1_inspector/data/
+    search_paths.push_back("/opt/g1_inspector/data/");
+
+    return findResourcePath(filename, search_paths);
 }
 
 }  // namespace greeter

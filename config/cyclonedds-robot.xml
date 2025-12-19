@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CycloneDDS configuration for robot-local communication
+  Story 1-6: Dual-Environment Deployment
+
+  On the G1 robot, all DDS communication is local (brain, sensors, motors
+  are on the same Jetson). Using loopback interface avoids network overhead.
+
+  Usage: Set CYCLONEDDS_URI environment variable before running:
+    export CYCLONEDDS_URI=file:///home/unitree/g1_inspector/config/cyclonedds-robot.xml
+-->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="0">
+    <General>
+      <!-- Use loopback for robot-local DDS communication -->
+      <NetworkInterfaceAddress>lo</NetworkInterfaceAddress>
+    </General>
+    <Tracing>
+      <!-- Minimal tracing for production -->
+      <Verbosity>warning</Verbosity>
+    </Tracing>
+  </Domain>
+</CycloneDDS>

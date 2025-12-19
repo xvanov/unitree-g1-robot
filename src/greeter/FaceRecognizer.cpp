@@ -1,4 +1,5 @@
 #include "greeter/FaceRecognizer.h"
+#include "greeter/GreeterConfig.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
@@ -8,6 +9,19 @@
 namespace greeter {
 
 FaceRecognizer::FaceRecognizer() = default;
+
+bool FaceRecognizer::init() {
+    // Use GreeterConfig path discovery (Story 1-6)
+    std::string model = GreeterConfig::findModelPath("face_recognition_sface_2021dec.onnx");
+
+    if (model.empty()) {
+        std::cerr << "FaceRecognizer: SFace model not found in search paths" << std::endl;
+        return false;
+    }
+
+    std::cout << "FaceRecognizer: Using model: " << model << std::endl;
+    return init(model);
+}
 
 bool FaceRecognizer::init(const std::string& model_path) {
     try {

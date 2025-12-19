@@ -62,11 +62,13 @@ public:
     // Gesture commands (G1 high-level arm control)
     // These use predefined motion sequences in the robot firmware
     // Robot should be standing for best results
-    // NOTE: Requires 29+ DOF model. Returns false on EDU (23-DOF) variant.
-    virtual bool waveHand(bool leftHand = false);   // Wave hand gesture
-    virtual bool shakeHand(int stage = -1);          // Handshake gesture (-1 = full sequence)
+    // NOTE: All G1 models (23/29/36 DOF) have arms and can wave/shake
+    //       Only 29+ DOF models have dexterous hand grippers for grip actions
+    virtual bool waveHand(bool leftHand = false);   // Wave hand gesture (all models)
+    virtual bool shakeHand(int stage = -1);          // Handshake gesture (arm motion on all, grip on 29+)
 
-    // Check if arm features are available (requires 29+ DOF)
+    // Check if dexterous hand grippers are available (requires 29+ DOF)
+    // All models have arms for wave/shake, only 29+ have grip capability
     virtual bool hasArmControl() const { return robot_dof_ >= G1Model::STANDARD_29_DOF; }
     int getRobotDOF() const { return robot_dof_; }
 

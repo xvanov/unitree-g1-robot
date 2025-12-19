@@ -29,7 +29,14 @@ public:
     ~FaceDetector() = default;
 
     /**
-     * Initialize the face detector with model files.
+     * Initialize the face detector using automatic model path discovery.
+     * Searches: ./models/ > ~/.g1_inspector/models/ > /opt/g1_inspector/models/
+     * @return false if model files not found. Caller should continue without face detection.
+     */
+    bool init();
+
+    /**
+     * Initialize the face detector with explicit model file paths.
      * @param prototxt_path Path to deploy.prototxt
      * @param caffemodel_path Path to res10_300x300_ssd_iter_140000.caffemodel
      * @return false if model files missing/invalid. Caller should continue without face detection.

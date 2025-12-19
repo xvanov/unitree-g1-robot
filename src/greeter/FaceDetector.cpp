@@ -1,10 +1,30 @@
 #include "greeter/FaceDetector.h"
+#include "greeter/GreeterConfig.h"
 #include <iostream>
 #include <chrono>
 
 namespace greeter {
 
 FaceDetector::FaceDetector() = default;
+
+bool FaceDetector::init() {
+    // Use GreeterConfig path discovery (Story 1-6)
+    std::string proto = GreeterConfig::findModelPath("deploy.prototxt");
+    std::string model = GreeterConfig::findModelPath("res10_300x300_ssd_iter_140000.caffemodel");
+
+    if (proto.empty()) {
+        std::cerr << "FaceDetector: deploy.prototxt not found in search paths" << std::endl;
+        return false;
+    }
+    if (model.empty()) {
+        std::cerr << "FaceDetector: caffemodel not found in search paths" << std::endl;
+        return false;
+    }
+
+    std::cout << "FaceDetector: Using prototxt: " << proto << std::endl;
+    std::cout << "FaceDetector: Using model: " << model << std::endl;
+    return init(proto, model);
+}
 
 bool FaceDetector::init(const std::string& prototxt_path, const std::string& caffemodel_path) {
     try {

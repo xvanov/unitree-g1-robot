@@ -227,13 +227,8 @@ void LocoController::emergencyStop() {
 
 bool LocoController::waveHand(bool leftHand) {
 #ifdef HAS_UNITREE_SDK2
-    // Check if robot model supports arm control (requires 29+ DOF)
-    if (!hasArmControl()) {
-        std::cerr << "[LOCO] WaveHand not available on G1 EDU (23-DOF) model" << std::endl;
-        std::cerr << "[LOCO] Arm gestures require G1 Standard (29-DOF) or Full (36-DOF)" << std::endl;
-        return false;
-    }
-
+    // WaveHand works on all G1 models (23/29/36 DOF) - all have arms
+    // Only dexterous hand grippers require 29+ DOF
     std::lock_guard<std::mutex> lock(command_mutex_);
     if (!connected_.load()) {
         std::cerr << "[LOCO] Not connected" << std::endl;
@@ -259,11 +254,10 @@ bool LocoController::waveHand(bool leftHand) {
 
 bool LocoController::shakeHand(int stage) {
 #ifdef HAS_UNITREE_SDK2
-    // Check if robot model supports arm control (requires 29+ DOF)
+    // ShakeHand requires grip capability (29+ DOF with hand grippers)
+    // On 23-DOF EDU, this will execute the arm motion but no grip
     if (!hasArmControl()) {
-        std::cerr << "[LOCO] ShakeHand not available on G1 EDU (23-DOF) model" << std::endl;
-        std::cerr << "[LOCO] Arm gestures require G1 Standard (29-DOF) or Full (36-DOF)" << std::endl;
-        return false;
+        std::cout << "[LOCO] Note: ShakeHand on 23-DOF EDU - arm motion only, no grip" << std::endl;
     }
 
     std::lock_guard<std::mutex> lock(command_mutex_);

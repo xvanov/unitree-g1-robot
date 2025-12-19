@@ -11,6 +11,7 @@ external/
 # ROS 2 / Colcon Build Artifacts
 # -----------------------------------------------------------------------------
 build/
+build2/
 install/
 log/
 

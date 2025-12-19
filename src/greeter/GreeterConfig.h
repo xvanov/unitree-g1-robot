@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace greeter {
 
@@ -51,6 +52,37 @@ struct GreeterConfig {
 
     // Helper: convert ExperimentalCondition to string
     static std::string conditionToString(ExperimentalCondition cond);
+
+    // ========================================
+    // Path Discovery (Story 1-6)
+    // ========================================
+
+    /**
+     * Find a model file in standard search paths.
+     * Search order: <cwd>/models/ > ~/.g1_inspector/models/ > /opt/g1_inspector/models/
+     * IMPORTANT: Binary must be run from project root for CWD-based paths to work.
+     * @param model_filename Just the filename (e.g., "deploy.prototxt")
+     * @return Full path if found, empty string if not found
+     */
+    static std::string findModelPath(const std::string& model_filename);
+
+    /**
+     * Find a resource file using custom search directories.
+     * @param filename Just the filename to find
+     * @param search_dirs List of directories to search (with trailing /)
+     * @return Full path if found, empty string if not found
+     */
+    static std::string findResourcePath(const std::string& filename,
+                                        const std::vector<std::string>& search_dirs);
+
+    /**
+     * Find a data file in standard data search paths.
+     * Search order: <cwd>/data/ > ~/.g1_inspector/data/ > /opt/g1_inspector/data/
+     * IMPORTANT: Binary must be run from project root for CWD-based paths to work.
+     * @param filename Relative path under data/ (e.g., "personnel/gauntlet_personnel.json")
+     * @return Full path if found, empty string if not found
+     */
+    static std::string findDataPath(const std::string& filename);
 };
 
 }  // namespace greeter
