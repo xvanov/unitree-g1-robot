@@ -1,4 +1,4 @@
-# generated: 2025-12-18
+# generated: 2025-12-19
 # project: unitree-g1-robot - Barry the Greeter Demo
 # project_key: barry-demo
 # tracking_system: file-system
@@ -29,7 +29,7 @@
 # - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', dev reviews, then Dev moves to 'done'
 
-generated: 2025-12-18
+generated: 2025-12-19
 project: unitree-g1-robot - Barry the Greeter Demo
 project_key: barry-demo
 tracking_system: file-system
@@ -44,3 +44,8 @@ development_status:
   1-4-llm-control-simulation-harness: review
   1-5-integration-demo-runner: backlog
   epic-1-retrospective: optional
+
+  # Epic 2: Frontier Model Misalignment Exploration (1 consolidated story)
+  epic-2: in-progress
+  2-1-frontier-model-misalignment-research-suite: review
+  epic-2-retrospective: optional
