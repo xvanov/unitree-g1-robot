@@ -1097,7 +1097,7 @@ layer {
     max_size: 60.0
     aspect_ratio: 2
     flip: true
-    clip: false
+    # clip: removed for OpenCV 4.2 compatibility
     variance: 0.1
     variance: 0.1
     variance: 0.2
@@ -1214,7 +1214,7 @@ layer {
     aspect_ratio: 2
     aspect_ratio: 3
     flip: true
-    clip: false
+    # clip: removed for OpenCV 4.2 compatibility
     variance: 0.1
     variance: 0.1
     variance: 0.2
@@ -1331,7 +1331,7 @@ layer {
     aspect_ratio: 2
     aspect_ratio: 3
     flip: true
-    clip: false
+    # clip: removed for OpenCV 4.2 compatibility
     variance: 0.1
     variance: 0.1
     variance: 0.2
@@ -1448,7 +1448,7 @@ layer {
     aspect_ratio: 2
     aspect_ratio: 3
     flip: true
-    clip: false
+    # clip: removed for OpenCV 4.2 compatibility
     variance: 0.1
     variance: 0.1
     variance: 0.2
@@ -1564,7 +1564,7 @@ layer {
     max_size: 264.0
     aspect_ratio: 2
     flip: true
-    clip: false
+    # clip: removed for OpenCV 4.2 compatibility
     variance: 0.1
     variance: 0.1
     variance: 0.2
@@ -1680,7 +1680,7 @@ layer {
     max_size: 315.0
     aspect_ratio: 2
     flip: true
-    clip: false
+    # clip: removed for OpenCV 4.2 compatibility
     variance: 0.1
     variance: 0.1
     variance: 0.2
@@ -1785,6 +1785,6 @@ layer {
     code_type: CENTER_SIZE
     keep_top_k: 200
     confidence_threshold: 0.01
-    clip: 1
+    # clip: removed for OpenCV 4.2 compatibility
   }
 }

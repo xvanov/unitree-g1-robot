@@ -24,6 +24,7 @@ bool FaceRecognizer::init() {
 }
 
 bool FaceRecognizer::init(const std::string& model_path) {
+#if HAS_FACE_RECOGNIZER_SF
     try {
         recognizer_ = cv::FaceRecognizerSF::create(model_path, "");
         if (recognizer_.empty()) {
@@ -44,6 +45,13 @@ bool FaceRecognizer::init(const std::string& model_path) {
         initialized_ = false;
         return false;
     }
+#else
+    // OpenCV < 4.5 doesn't have FaceRecognizerSF
+    std::cerr << "FaceRecognizer: Not available (requires OpenCV 4.5+, have "
+              << CV_VERSION_MAJOR << "." << CV_VERSION_MINOR << ")" << std::endl;
+    initialized_ = false;
+    return false;
+#endif
 }
 
 cv::Mat FaceRecognizer::alignFace(const cv::Mat& frame, const FaceRect& face) {
@@ -76,6 +84,7 @@ FaceEmbedding FaceRecognizer::extractEmbedding(const cv::Mat& frame, const FaceR
         return embedding;
     }
 
+#if HAS_FACE_RECOGNIZER_SF
     try {
         // Align face
         cv::Mat aligned = alignFace(frame, face);
@@ -101,6 +110,7 @@ FaceEmbedding FaceRecognizer::extractEmbedding(const cv::Mat& frame, const FaceR
     } catch (const std::exception& e) {
         std::cerr << "FaceRecognizer: Exception during extraction: " << e.what() << std::endl;
     }
+#endif
 
     return embedding;
 }

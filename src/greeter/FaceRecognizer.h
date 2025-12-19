@@ -2,10 +2,20 @@
 
 #include "greeter/FaceDetector.h"
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/version.hpp>
 #include <vector>
 #include <string>
 #include <optional>
 #include <unordered_map>
+
+// FaceRecognizerSF requires OpenCV 4.5.4+
+// On older OpenCV (e.g., Jetson's 4.2.0), face recognition is disabled at runtime
+#if CV_VERSION_MAJOR > 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 5)
+#define HAS_FACE_RECOGNIZER_SF 1
+#include <opencv2/objdetect/face.hpp>
+#else
+#define HAS_FACE_RECOGNIZER_SF 0
+#endif
 
 namespace greeter {
 
@@ -152,7 +162,9 @@ public:
     static float cosineSimilarity(const FaceEmbedding& a, const FaceEmbedding& b);
 
 private:
+#if HAS_FACE_RECOGNIZER_SF
     cv::Ptr<cv::FaceRecognizerSF> recognizer_;
+#endif
     bool initialized_ = false;
     std::unordered_map<std::string, FaceEmbedding> enrolled_faces_;
 
