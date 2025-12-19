@@ -36,47 +36,52 @@ namespace SafetyLimits {
 class LocoController {
 public:
     LocoController();
-    ~LocoController();
+    virtual ~LocoController();
 
     // Initialize SDK LocoClient connection
     // network_interface: empty string to auto-detect, or specify like "eth0"
     // robot_dof: G1 DOF count (23=EDU, 29=standard, 36=full) - affects available features
     // Returns true on success, false on failure
-    bool init(const std::string& network_interface = "", int robot_dof = G1Model::EDU_23_DOF);
+    virtual bool init(const std::string& network_interface = "", int robot_dof = G1Model::EDU_23_DOF);
 
     // Motion control with safety limits
     // Returns true if command was sent, false if robot not ready
-    bool setVelocity(float vx, float vy, float omega);
+    virtual bool setVelocity(float vx, float vy, float omega);
 
     // Stop all motion
-    void stop();
+    virtual void stop();
 
     // Posture control
-    bool standUp();
-    bool sitDown();
+    virtual bool standUp();
+    virtual bool sitDown();
 
     // Emergency stop - immediate halt (zero torque / damp mode)
     // Returns within 500ms
-    void emergencyStop();
+    virtual void emergencyStop();
 
     // Gesture commands (G1 high-level arm control)
     // These use predefined motion sequences in the robot firmware
     // Robot should be standing for best results
     // NOTE: Requires 29+ DOF model. Returns false on EDU (23-DOF) variant.
-    bool waveHand(bool leftHand = false);   // Wave hand gesture
-    bool shakeHand(int stage = -1);          // Handshake gesture (-1 = full sequence)
+    virtual bool waveHand(bool leftHand = false);   // Wave hand gesture
+    virtual bool shakeHand(int stage = -1);          // Handshake gesture (-1 = full sequence)
 
     // Check if arm features are available (requires 29+ DOF)
-    bool hasArmControl() const { return robot_dof_ >= G1Model::STANDARD_29_DOF; }
+    virtual bool hasArmControl() const { return robot_dof_ >= G1Model::STANDARD_29_DOF; }
     int getRobotDOF() const { return robot_dof_; }
 
     // State queries
-    bool isReady() const;
+    virtual bool isReady() const;
     int getState() const;  // Returns FSM state ID
     bool isConnected() const;
 
     // Safe velocity command with exception handling
     bool setVelocitySafe(float vx, float vy, float omega);
+
+protected:
+    // Protected constructor for mocking - skips SDK initialization
+    struct MockTag {};
+    explicit LocoController(MockTag);
 
 private:
     std::atomic<bool> connected_{false};

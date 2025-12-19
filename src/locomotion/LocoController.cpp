@@ -21,6 +21,11 @@ LocoController::LocoController() {
 #endif
 }
 
+// Mock constructor - skips SDK initialization for unit testing
+LocoController::LocoController(MockTag) {
+    // Do not initialize impl_ - this constructor is for mocking only
+}
+
 LocoController::~LocoController() = default;
 
 bool LocoController::init(const std::string& network_interface, int robot_dof) {
