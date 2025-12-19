@@ -23,6 +23,9 @@
 #include "replay/ReplayRunner.h"
 #include "replay/StreamReplayViewer.h"
 #include "greeter/GreeterConfig.h"
+#include "greeter/FaceDetector.h"
+#include "greeter/FaceRecognizer.h"
+#include "greeter/PersonnelDatabase.h"
 
 constexpr const char* VERSION = "G1 Inspector v1.0";
 
@@ -68,6 +71,12 @@ void printUsage() {
               << "  --replay-visualize   Show visualization window during replay\n"
               << "  --stream-replay <s>  Replay with multi-stream visualization (4 windows)\n"
               << "  --multi-stream       Enable multi-stream mode (use with --replay)\n"
+              << "  --test-face-detection Test face detection from camera\n"
+              << "  --test-face-recognition Test face recognition from camera\n"
+              << "  --enroll-face <id>   Enroll a face with person ID (use with --camera)\n"
+              << "  --batch-enroll       Enroll all faces from data/personnel/headshots/\n"
+              << "  --enrollments <path> Path to face enrollments JSON (default: data/face_enrollments.json)\n"
+              << "  --camera <index>     Camera index for face detection/recognition (default: 0)\n"
               << "  --test-sensors       Run sensor diagnostics\n"
               << "  --test-loco          Run locomotion test (robot will move!)\n"
               << "  --test-wave          Arm wave test (robot waves hand)\n"
@@ -513,6 +522,369 @@ int runHelloWorld(const std::string& interface) {
 #endif
 }
 
+int runFaceDetectionTest(int camera_index) {
+    std::cout << "\n=== Face Detection Test ===" << std::endl;
+    std::cout << "[INFO] Opening camera " << camera_index << std::endl;
+    std::cout << "[INFO] Press ESC to exit\n" << std::endl;
+
+    // Initialize face detector
+    greeter::FaceDetector detector;
+    if (!detector.init("models/face_detection/deploy.prototxt",
+                       "models/face_detection/res10_300x300_ssd_iter_140000.caffemodel")) {
+        std::cerr << "[ERROR] Failed to load face detection model" << std::endl;
+        std::cerr << "[ERROR] Ensure model files exist in models/face_detection/" << std::endl;
+        return 1;
+    }
+
+    // Open camera
+    cv::VideoCapture cap(camera_index);
+    if (!cap.isOpened()) {
+        std::cerr << "[ERROR] Failed to open camera " << camera_index << std::endl;
+        return 1;
+    }
+
+    // Set camera resolution
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+
+    cv::Mat frame;
+    int frame_count = 0;
+    std::vector<greeter::FaceRect> faces;  // Persist across frames to avoid flickering
+
+    while (g_running) {
+        cap >> frame;
+        if (frame.empty()) {
+            std::cerr << "[WARNING] Empty frame received" << std::endl;
+            continue;
+        }
+
+        // Run detection every 3rd frame for 10 FPS at 30 FPS capture (AC2)
+        // Faces vector persists between frames so bounding boxes don't flicker
+        if (frame_count % 3 == 0) {
+            faces = detector.detect(frame, 0.5f);
+        }
+
+        // Draw bounding boxes
+        for (const auto& face : faces) {
+            cv::rectangle(frame, face.bounding_box, cv::Scalar(0, 255, 0), 2);
+
+            // Draw confidence
+            std::string conf_text = std::to_string(static_cast<int>(face.confidence * 100)) + "%";
+            cv::putText(frame, conf_text,
+                        cv::Point(face.bounding_box.x, face.bounding_box.y - 5),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+        }
+
+        // Draw stats overlay
+        std::string stats = "Faces: " + std::to_string(faces.size()) +
+                           " | Time: " + std::to_string(static_cast<int>(detector.getLastDetectionTimeMs())) + "ms";
+        cv::putText(frame, stats, cv::Point(10, 30),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+
+        // Show frame
+        cv::imshow("Face Detection Test", frame);
+
+        // Check for ESC key
+        int key = cv::waitKey(1);
+        if (key == 27) {  // ESC
+            break;
+        }
+
+        frame_count++;
+    }
+
+    cap.release();
+    cv::destroyAllWindows();
+
+    std::cout << "\n[FACE] Test complete" << std::endl;
+    return 0;
+}
+
+int runFaceEnrollment(int camera_index, const std::string& person_id, const std::string& enrollments_path) {
+    std::cout << "\n=== Face Enrollment ===" << std::endl;
+    std::cout << "[INFO] Enrolling face for: " << person_id << std::endl;
+    std::cout << "[INFO] Camera index: " << camera_index << std::endl;
+    std::cout << "[INFO] Press SPACE to capture, ESC to cancel\n" << std::endl;
+
+    // Initialize face detector and recognizer
+    greeter::FaceDetector detector;
+    if (!detector.init("models/face_detection/deploy.prototxt",
+                       "models/face_detection/res10_300x300_ssd_iter_140000.caffemodel")) {
+        std::cerr << "[ERROR] Failed to load face detection model" << std::endl;
+        return 1;
+    }
+
+    greeter::FaceRecognizer recognizer;
+    if (!recognizer.init("models/face_recognition/face_recognition_sface_2021dec.onnx")) {
+        std::cerr << "[ERROR] Failed to load face recognition model" << std::endl;
+        return 1;
+    }
+
+    // Load existing enrollments
+    if (std::filesystem::exists(enrollments_path)) {
+        recognizer.loadEnrollments(enrollments_path);
+    }
+
+    // Open camera
+    cv::VideoCapture cap(camera_index);
+    if (!cap.isOpened()) {
+        std::cerr << "[ERROR] Failed to open camera " << camera_index << std::endl;
+        return 1;
+    }
+
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+
+    cv::Mat frame;
+    std::vector<greeter::FaceRect> faces;
+
+    while (g_running) {
+        cap >> frame;
+        if (frame.empty()) continue;
+
+        // Detect faces
+        faces = detector.detect(frame, 0.5f);
+
+        // Draw bounding boxes
+        for (const auto& face : faces) {
+            cv::rectangle(frame, face.bounding_box, cv::Scalar(0, 255, 0), 2);
+        }
+
+        // Instructions
+        std::string status = faces.size() == 1 ? "Face detected - Press SPACE to enroll"
+                           : faces.size() > 1  ? "Multiple faces - Show only one face"
+                           : "No face detected";
+        cv::putText(frame, status, cv::Point(10, 30),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+        cv::putText(frame, "Person: " + person_id, cv::Point(10, 60),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+
+        cv::imshow("Face Enrollment", frame);
+
+        int key = cv::waitKey(1);
+        if (key == 27) {  // ESC
+            std::cout << "[ENROLL] Cancelled" << std::endl;
+            break;
+        }
+        if (key == 32 && faces.size() == 1) {  // SPACE
+            if (recognizer.enrollFace(person_id, frame, faces[0])) {
+                // Save enrollments
+                std::filesystem::create_directories(std::filesystem::path(enrollments_path).parent_path());
+                recognizer.saveEnrollments(enrollments_path);
+                std::cout << "[ENROLL] Successfully enrolled " << person_id << std::endl;
+                std::cout << "[ENROLL] Total enrollments: " << recognizer.enrolledCount() << std::endl;
+                break;
+            } else {
+                std::cerr << "[ERROR] Failed to enroll face" << std::endl;
+            }
+        }
+    }
+
+    cap.release();
+    cv::destroyAllWindows();
+    return 0;
+}
+
+int runBatchEnrollment(const std::string& headshots_dir, const std::string& enrollments_path, const std::string& personnel_db_path) {
+    std::cout << "\n=== Batch Face Enrollment ===" << std::endl;
+    std::cout << "[INFO] Headshots directory: " << headshots_dir << std::endl;
+    std::cout << "[INFO] Enrollments output: " << enrollments_path << std::endl;
+
+    // Initialize face detector and recognizer
+    greeter::FaceDetector detector;
+    if (!detector.init("models/face_detection/deploy.prototxt",
+                       "models/face_detection/res10_300x300_ssd_iter_140000.caffemodel")) {
+        std::cerr << "[ERROR] Failed to load face detection model" << std::endl;
+        return 1;
+    }
+
+    greeter::FaceRecognizer recognizer;
+    if (!recognizer.init("models/face_recognition/face_recognition_sface_2021dec.onnx")) {
+        std::cerr << "[ERROR] Failed to load face recognition model" << std::endl;
+        return 1;
+    }
+
+    // Load personnel database to map filenames to IDs
+    greeter::PersonnelDatabase personnel_db;
+    if (std::filesystem::exists(personnel_db_path)) {
+        personnel_db.loadFromFile(personnel_db_path);
+        std::cout << "[INFO] Loaded " << personnel_db.size() << " personnel records" << std::endl;
+    }
+
+    // Process each headshot image
+    int enrolled = 0;
+    int failed = 0;
+    int no_face = 0;
+
+    for (const auto& entry : std::filesystem::directory_iterator(headshots_dir)) {
+        if (!entry.is_regular_file()) continue;
+
+        std::string ext = entry.path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (ext != ".jpg" && ext != ".jpeg" && ext != ".png") continue;
+
+        std::string filename = entry.path().stem().string();
+        std::string filepath = entry.path().string();
+
+        // Convert filename to person_id format (replace spaces with underscores, lowercase)
+        std::string person_id = filename;
+        std::transform(person_id.begin(), person_id.end(), person_id.begin(), ::tolower);
+        std::replace(person_id.begin(), person_id.end(), ' ', '_');
+
+        // Load image
+        cv::Mat image = cv::imread(filepath);
+        if (image.empty()) {
+            std::cerr << "[WARN] Cannot read image: " << filepath << std::endl;
+            failed++;
+            continue;
+        }
+
+        // Detect faces
+        auto faces = detector.detect(image, 0.5f);
+        if (faces.empty()) {
+            std::cerr << "[WARN] No face detected in: " << filename << std::endl;
+            no_face++;
+            continue;
+        }
+
+        // Use the largest face (in case of multiple detections)
+        auto& face = *std::max_element(faces.begin(), faces.end(),
+            [](const greeter::FaceRect& a, const greeter::FaceRect& b) {
+                return a.bounding_box.area() < b.bounding_box.area();
+            });
+
+        // Enroll the face
+        if (recognizer.enrollFace(person_id, image, face)) {
+            enrolled++;
+            // Check if person exists in database
+            auto record = personnel_db.findById(person_id);
+            if (record.has_value()) {
+                std::cout << "[OK] " << record->name << " (" << person_id << ")" << std::endl;
+            } else {
+                std::cout << "[OK] " << person_id << " (not in personnel DB)" << std::endl;
+            }
+        } else {
+            std::cerr << "[FAIL] Could not extract embedding: " << filename << std::endl;
+            failed++;
+        }
+    }
+
+    // Save enrollments
+    std::filesystem::create_directories(std::filesystem::path(enrollments_path).parent_path());
+    recognizer.saveEnrollments(enrollments_path);
+
+    std::cout << "\n=== Enrollment Summary ===" << std::endl;
+    std::cout << "Enrolled:  " << enrolled << std::endl;
+    std::cout << "No face:   " << no_face << std::endl;
+    std::cout << "Failed:    " << failed << std::endl;
+    std::cout << "Total:     " << (enrolled + no_face + failed) << std::endl;
+
+    return 0;
+}
+
+int runFaceRecognitionTest(int camera_index, const std::string& enrollments_path, const std::string& personnel_db_path) {
+    std::cout << "\n=== Face Recognition Test ===" << std::endl;
+    std::cout << "[INFO] Opening camera " << camera_index << std::endl;
+    std::cout << "[INFO] Press ESC to exit\n" << std::endl;
+
+    // Initialize face detector and recognizer
+    greeter::FaceDetector detector;
+    if (!detector.init("models/face_detection/deploy.prototxt",
+                       "models/face_detection/res10_300x300_ssd_iter_140000.caffemodel")) {
+        std::cerr << "[ERROR] Failed to load face detection model" << std::endl;
+        return 1;
+    }
+
+    greeter::FaceRecognizer recognizer;
+    if (!recognizer.init("models/face_recognition/face_recognition_sface_2021dec.onnx")) {
+        std::cerr << "[ERROR] Failed to load face recognition model" << std::endl;
+        return 1;
+    }
+
+    // Load enrollments
+    if (!std::filesystem::exists(enrollments_path)) {
+        std::cerr << "[WARNING] No enrollments found at " << enrollments_path << std::endl;
+        std::cerr << "[WARNING] Use --enroll-face <id> to enroll faces first" << std::endl;
+    } else {
+        recognizer.loadEnrollments(enrollments_path);
+        std::cout << "[INFO] Loaded " << recognizer.enrolledCount() << " enrolled faces" << std::endl;
+    }
+
+    // Load personnel database for name lookup
+    greeter::PersonnelDatabase personnel_db;
+    if (std::filesystem::exists(personnel_db_path)) {
+        personnel_db.loadFromFile(personnel_db_path);
+    }
+
+    // Open camera
+    cv::VideoCapture cap(camera_index);
+    if (!cap.isOpened()) {
+        std::cerr << "[ERROR] Failed to open camera " << camera_index << std::endl;
+        return 1;
+    }
+
+    cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+
+    cv::Mat frame;
+    int frame_count = 0;
+    std::vector<greeter::FaceRect> faces;
+    std::vector<greeter::RecognitionResult> results;
+
+    while (g_running) {
+        cap >> frame;
+        if (frame.empty()) continue;
+
+        // Detect and recognize every 3rd frame
+        if (frame_count % 3 == 0) {
+            faces = detector.detect(frame, 0.5f);
+            results.clear();
+            for (const auto& face : faces) {
+                results.push_back(recognizer.recognize(frame, face, 0.4f));
+            }
+        }
+
+        // Draw bounding boxes and labels
+        for (size_t i = 0; i < faces.size() && i < results.size(); i++) {
+            const auto& face = faces[i];
+            const auto& result = results[i];
+
+            cv::Scalar color = result.matched ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
+            cv::rectangle(frame, face.bounding_box, color, 2);
+
+            std::string label;
+            if (result.matched) {
+                // Try to get full name from personnel database
+                auto person = personnel_db.findById(result.person_id);
+                label = person.has_value() ? person->name : result.person_id;
+                label += " (" + std::to_string(static_cast<int>(result.similarity * 100)) + "%)";
+            } else {
+                label = "Unknown";
+            }
+            cv::putText(frame, label,
+                        cv::Point(face.bounding_box.x, face.bounding_box.y - 5),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.6, color, 2);
+        }
+
+        // Stats overlay
+        std::string stats = "Faces: " + std::to_string(faces.size()) +
+                           " | Enrolled: " + std::to_string(recognizer.enrolledCount());
+        cv::putText(frame, stats, cv::Point(10, 30),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+
+        cv::imshow("Face Recognition Test", frame);
+
+        if (cv::waitKey(1) == 27) break;  // ESC
+        frame_count++;
+    }
+
+    cap.release();
+    cv::destroyAllWindows();
+
+    std::cout << "\n[RECOG] Test complete" << std::endl;
+    return 0;
+}
+
 int runGenerateReport(const std::string& inspection_id) {
     std::cout << "\n=== Report Generation ===" << std::endl;
 
@@ -737,6 +1109,16 @@ int main(int argc, char* argv[]) {
     bool noLidar = false;  // Skip Livox LiDAR initialization
     bool visualizeSLAM = false;  // Show SLAM visualizer during teleop
 
+    // Face detection/recognition test options (Story 1.3)
+    bool testFaceDetection = false;
+    bool testFaceRecognition = false;
+    bool batchEnroll = false;
+    std::string enrollFaceId;
+    std::string enrollmentsPath = "data/face_enrollments.json";
+    std::string personnelDbPath = "data/personnel/gauntlet_personnel.json";
+    std::string headshotsDir = "data/personnel/headshots";
+    int testCameraIndex = 0;
+
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -763,6 +1145,45 @@ int main(int argc, char* argv[]) {
 
         if (arg == "--interactive" || arg == "-i") {
             interactive = true;
+            continue;
+        }
+
+        if (arg == "--test-face-detection") {
+            testFaceDetection = true;
+            continue;
+        }
+
+        if (arg == "--test-face-recognition") {
+            testFaceRecognition = true;
+            continue;
+        }
+
+        if (arg == "--enroll-face") {
+            if (i + 1 < argc) {
+                enrollFaceId = argv[++i];
+            }
+            continue;
+        }
+
+        if (arg == "--batch-enroll") {
+            batchEnroll = true;
+            continue;
+        }
+
+        if (arg == "--enrollments") {
+            if (i + 1 < argc) {
+                enrollmentsPath = argv[++i];
+            }
+            continue;
+        }
+
+        if (arg == "--camera") {
+            if (i + 1 < argc) {
+                testCameraIndex = std::stoi(argv[++i]);
+            } else {
+                std::cerr << "Error: --camera requires an index argument" << std::endl;
+                return 1;
+            }
             continue;
         }
 
@@ -1012,6 +1433,22 @@ int main(int argc, char* argv[]) {
     }
 
     // Run requested test
+    if (testFaceDetection) {
+        return runFaceDetectionTest(testCameraIndex);
+    }
+
+    if (batchEnroll) {
+        return runBatchEnrollment(headshotsDir, enrollmentsPath, personnelDbPath);
+    }
+
+    if (!enrollFaceId.empty()) {
+        return runFaceEnrollment(testCameraIndex, enrollFaceId, enrollmentsPath);
+    }
+
+    if (testFaceRecognition) {
+        return runFaceRecognitionTest(testCameraIndex, enrollmentsPath, personnelDbPath);
+    }
+
     if (testSensors) {
         return runSensorTest(interface);
     }

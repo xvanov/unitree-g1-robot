@@ -12,8 +12,8 @@ if(NOT unitree_sdk2_FOUND)
     message(WARNING "unitree_sdk2 not found - robot features will be disabled")
 endif()
 
-# OpenCV
-find_package(OpenCV REQUIRED)
+# OpenCV (with DNN for face detection - Story 1.3)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui dnn imgcodecs objdetect)
 
 # curl
 find_package(CURL REQUIRED)
@@ -274,11 +274,20 @@ target_link_libraries(recording
 add_library(greeter
     src/greeter/GreeterConfig.cpp
     src/greeter/PersonnelDatabase.cpp
+    src/greeter/GreeterVlmClient.cpp
+    src/greeter/FaceDetector.cpp
+    src/greeter/FaceRecognizer.cpp
+    src/greeter/ContextBuilder.cpp
+    src/greeter/ActionParser.cpp
+    src/greeter/ActionExecutor.cpp
 )
 target_include_directories(greeter PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(greeter
     yaml-cpp
     nlohmann_json::nlohmann_json
+    ${CURL_LIBRARIES}
+    ${OpenCV_LIBS}
+    loco_hw
 )
 
 # ============================================
@@ -517,6 +526,13 @@ target_link_libraries(stream_viewer
     webcam_stream
     replay
     ${OpenCV_LIBS}
+)
+
+# Greeter action testing tool (Story 1-2)
+add_executable(test_greeter_actions tools/test_greeter_actions.cpp)
+target_link_libraries(test_greeter_actions
+    greeter
+    loco_hw
 )
 
 # Main executable
@@ -788,6 +804,64 @@ if(GTest_FOUND)
         GTest::gtest_main
     )
     add_test(NAME test_personnel_database COMMAND test_personnel_database
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # GreeterVlmClient unit tests (Barry Demo - Story 1.4)
+    add_executable(test_greeter_vlm_client test/test_greeter_vlm_client.cpp)
+    target_link_libraries(test_greeter_vlm_client
+        greeter
+        GTest::gtest_main
+    )
+    add_test(NAME test_greeter_vlm_client COMMAND test_greeter_vlm_client
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # FaceDetector unit tests (Barry Demo - Story 1.3)
+    add_executable(test_face_detector test/test_face_detector.cpp)
+    target_link_libraries(test_face_detector
+        greeter
+        ${OpenCV_LIBS}
+        GTest::gtest_main
+    )
+    add_test(NAME test_face_detector COMMAND test_face_detector
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # FaceRecognizer unit tests (Barry Demo - Story 1.3)
+    add_executable(test_face_recognizer test/test_face_recognizer.cpp)
+    target_link_libraries(test_face_recognizer
+        greeter
+        ${OpenCV_LIBS}
+        GTest::gtest_main
+    )
+    add_test(NAME test_face_recognizer COMMAND test_face_recognizer
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # ContextBuilder unit tests (Barry Demo - Story 1.3)
+    add_executable(test_context_builder test/test_context_builder.cpp)
+    target_link_libraries(test_context_builder
+        greeter
+        ${OpenCV_LIBS}
+        GTest::gtest_main
+    )
+    add_test(NAME test_context_builder COMMAND test_context_builder
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # ActionParser unit tests (Barry Demo - Story 1.2)
+    add_executable(test_action_parser test/test_action_parser.cpp)
+    target_link_libraries(test_action_parser
+        greeter
+        GTest::gtest_main
+    )
+    add_test(NAME test_action_parser COMMAND test_action_parser
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # ActionExecutor unit tests (Barry Demo - Story 1.2)
+    add_executable(test_action_executor test/test_action_executor.cpp)
+    target_link_libraries(test_action_executor
+        greeter
+        loco_hw
+        GTest::gtest_main
+    )
+    add_test(NAME test_action_executor COMMAND test_action_executor
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 else()
     message(WARNING "GTest not found - unit tests will not be built")
