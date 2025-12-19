@@ -280,18 +280,12 @@ target_link_libraries(depth_stream_client
 )
 
 # ============================================
-# Webcam Stream Client (for dev machine - receives webcam from robot)
+# Webcam Stream Client
 # ============================================
-add_library(webcam_stream_client
-    src/webcam/WebcamStreamServer.cpp
-)
-target_include_directories(webcam_stream_client PUBLIC
-    ${CMAKE_SOURCE_DIR}/src
-)
-target_link_libraries(webcam_stream_client
-    ${OpenCV_LIBS}
-    pthread
-)
+# NOTE: webcam_stream_client was removed - it duplicated webcam_stream library
+# (both compiled WebcamStreamServer.cpp). Use webcam_stream instead.
+# The webcam_stream library is defined later in this file and provides
+# both server and client functionality for webcam streaming.
 
 # ============================================
 # Teleop (Story 2-1)
@@ -310,7 +304,7 @@ target_link_libraries(teleop
     loco_hw
     recording
     depth_stream_client
-    webcam_stream_client
+    webcam_stream
     slam
     ${OpenCV_LIBS}
 )
