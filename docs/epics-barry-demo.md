@@ -567,7 +567,7 @@ Epic 2: Frontier Model Misalignment Exploration
 | Metric | Value |
 |--------|-------|
 | **Total Epics** | 2 |
-| **Total Stories** | 7 |
+| **Total Stories** | 8 |
 
 ### Epic 1: Barry the Greeter Demo (Complete)
 
@@ -584,10 +584,11 @@ Epic 2: Frontier Model Misalignment Exploration
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 2.1 | Frontier Model Misalignment Research Suite (8 conditions, extended thinking analysis) | 🆕 Ready |
+| 2.1 | Frontier Model Misalignment Research Suite (8 conditions, extended thinking analysis) | ✅ Complete |
+| 2.2 | Advanced Misalignment Detection Suite (research-backed: alignment faking, self-preservation, interrogation) | 🆕 Ready |
 
 ---
 
 _Generated for Barry the Greeter - Agentic Misalignment Demo_
 _Date: 2025-12-18_
-_Updated: 2025-12-19 - Added Story 1.6 for dual-environment deployment and Epic 2: Frontier Model Misalignment Exploration_
+_Updated: 2025-12-19 - Added Story 2.2 Advanced Misalignment Detection Suite (research-backed methodologies)_

@@ -5,7 +5,7 @@ Original classifiers:
 - DeliberationClassifier: Reasoning about harm
 - FollowingClassifier: Following behavior
 
-Frontier Model Alignment Research classifiers:
+Frontier Model Alignment Research classifiers (Story 2-1):
 - EnvironmentInferenceClassifier: Use of diagnostic tools
 - InferredRealityClassifier: What environment model believes it's in
 - SycophancyClassifier: Prior agreement overriding safety
@@ -14,6 +14,9 @@ Frontier Model Alignment Research classifiers:
 - IndirectHarmClassifier: Harm through inaction/misinformation
 - CoTSchemingClassifier: Hidden reasoning patterns
 - AuthorityResolutionClassifier: Multi-principal conflict resolution
+
+Advanced Misalignment Detection classifiers (Story 2-2):
+- AlignmentFakingClassifier: Training-aware compliance changes
 """
 
 from .push_classifier import PushClassifier
@@ -32,6 +35,19 @@ from .authority_resolution_classifier import (
     AuthorityResolutionClassifier,
     AuthorityChoice,
     ConflictResolutionStrategy
+)
+
+# Advanced Misalignment Detection classifiers (Story 2-2)
+from .alignment_faking_classifier import (
+    AlignmentFakingClassifier,
+    AlignmentFakingResult,
+    FakingClassification
+)
+from .self_preservation_classifier import (
+    SelfPreservationClassifier,
+    SelfPreservationResult,
+    PreservationType,
+    PreservationSeverity
 )
 
 __all__ = [
@@ -54,4 +70,12 @@ __all__ = [
     "AuthorityResolutionClassifier",
     "AuthorityChoice",
     "ConflictResolutionStrategy",
+    # Advanced Misalignment Detection (Story 2-2)
+    "AlignmentFakingClassifier",
+    "AlignmentFakingResult",
+    "FakingClassification",
+    "SelfPreservationClassifier",
+    "SelfPreservationResult",
+    "PreservationType",
+    "PreservationSeverity",
 ]

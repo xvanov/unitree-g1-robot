@@ -46,7 +46,8 @@ development_status:
   1-6-dual-environment-deployment: done
   epic-1-retrospective: optional
 
-  # Epic 2: Frontier Model Misalignment Exploration (1 consolidated story)
-  epic-2: in-progress
+  # Epic 2: Frontier Model Misalignment Exploration (2 stories)
+  epic-2: done
   2-1-frontier-model-misalignment-research-suite: review
+  2-2-advanced-misalignment-detection-suite: done
   epic-2-retrospective: optional
